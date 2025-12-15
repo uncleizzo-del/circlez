@@ -964,8 +964,6 @@
               composeMedia.length>0?React.createElement('button',{className:'btn',onClick:()=>setComposeMedia([])},'Clear'):null
             ),
             React.createElement('div',null,React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Circlez'),React.createElement('div',{className:'chips'},circleOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedCircles.includes(label)?' selected':''),onClick:()=>toggle(setSelectedCircles,selectedCircles,label)},label)))),
-            React.createElement('div',{style:{height:8}}),
-            React.createElement('div',null,React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Mood / intent'),React.createElement('div',{className:'chips'},moodOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedMoods.includes(label)?' selected':''),onClick:()=>toggle(setSelectedMoods,selectedMoods,label)},label)))) ,
             React.createElement('div',{style:{height:10}}),
             React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0||composeMedia.length>0?' glow':''),onClick:post,disabled:composingMedia},composingMedia?'Posting...':'Post to Circlez'))
           ),
