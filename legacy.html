@@ -89,6 +89,8 @@
         const [fontStyle,setFontStyle]=useState('default');
         const [uploadingPhoto,setUploadingPhoto]=useState(false);
         const [uploadingVideo,setUploadingVideo]=useState(false);
+        const [pendingPhoto,setPendingPhoto]=useState(null);
+        const [pendingPhotoUrl,setPendingPhotoUrl]=useState(null);
         const [editingProfile,setEditingProfile]=useState(false);
 
         const [content,setContent]=useState('');
@@ -124,7 +126,13 @@
 
         async function saveProfile(){if(!session)return;const payload={display_name:displayName||null,location:location||null,bio:bio||null,font_style:fontStyle||'default'};const { error } = await supabase.from('profiles').update(payload).eq('id',session.user.id);if(error){console.error('Save profile',error);safeAlert('Could not save profile')}else safeAlert('Saved')}
 
-        async function handlePhotoUpload(e){if(!session||!e.target.files||!e.target.files[0])return;const file=e.target.files[0];if(file.size>MAX_PROFILE_PHOTO_BYTES){safeAlert('Photo must be under 10MB');return}setUploadingPhoto(true);const url=await uploadToBucket(file,session.user.id,'photos');if(url){const{error}=await supabase.from('profiles').update({profile_photo_:url}).eq('id',session.user.id);if(!error){await loadProfile(session.user);safeAlert('Photo uploaded!')}else{console.error('Photo save error',error);safeAlert('Failed to save photo')}}setUploadingPhoto(false)}
+        function handlePhotoSelect(e){if(!session||!e.target.files||!e.target.files[0])return;const file=e.target.files[0];if(file.size>MAX_PROFILE_PHOTO_BYTES){safeAlert('Photo must be under 10MB');return}if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}setPendingPhoto(file);setPendingPhotoUrl(URL.createObjectURL(file))}
+
+        function cancelProfilePhoto(){if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}setPendingPhoto(null);setPendingPhotoUrl(null)}
+
+        function resizeImageToSquare(file,size=256){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;const ctx=canvas.getContext('2d');const iw=img.width, ih=img.height;const scale=Math.max(size/iw,size/ih);const sw=size/scale, sh=size/scale;const sx=(iw-sw)/2, sy=(ih-sh)/2;ctx.drawImage(img,sx,sy,sw,sh,0,0,size,size);canvas.toBlob(b=>b?resolve(b):reject(new Error('Blob failed')),'image/jpeg',0.9)}catch(err){reject(err)}};img.onerror=reject;img.src=URL.createObjectURL(file)})}
+
+        async function saveProfilePhoto(){if(!session||!pendingPhoto)return;try{setUploadingPhoto(true);const resized=await resizeImageToSquare(pendingPhoto,256);const resizedFile=new File([resized],'avatar.jpg',{type:'image/jpeg'});const url=await uploadToBucket(resizedFile,session.user.id,'photos');if(url){const { error } = await supabase.from('profiles').update({profile_photo_:url}).eq('id',session.user.id);if(error){console.error('Photo save error',error);safeAlert('Failed to save photo')}else{await loadProfile(session.user);safeAlert('Photo saved!')}}}catch(err){console.error('Resize/upload error',err);safeAlert('Could not process photo')}finally{if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}setPendingPhoto(null);setPendingPhotoUrl(null);setUploadingPhoto(false)}}
 
         async function handleVideoUpload(e){if(!session||!e.target.files||!e.target.files[0])return;const file=e.target.files[0];if(file.size>MAX_INTRO_VIDEO_BYTES){safeAlert('Video must be under 25MB');return}const video=document.createElement('video');video.preload='metadata';video.onloadedmetadata=async()=>{window.URL.revokeObjectURL(video.src);if(video.duration>5.5){safeAlert('Video must be 5 seconds or less');return}setUploadingVideo(true);const url=await uploadToBucket(file,session.user.id,'intro-videos');if(url){const{error}=await supabase.from('profiles').update({avatar_url:url}).eq('id',session.user.id);if(!error){await loadProfile(session.user);safeAlert('Intro video uploaded!')}else{console.error('Video save error',error);safeAlert('Failed to save video')}}setUploadingVideo(false)};video.src=URL.createObjectURL(file)}
 
@@ -188,7 +196,7 @@
           setMyFollowers(data||[]);
         }
 
-        async function logout(){try{await supabase.auth.signOut();setSession(null);setProfile(null);setFeed([]);window.location.reload()}catch(err){console.error('Logout error:',err);safeAlert('Could not log out')}}
+        async function logout(){try{await supabase.auth.signOut({scope:'global'});setSession(null);setProfile(null);setFeed([]);window.location.href=window.location.origin+'/legacy.html'}catch(err){console.error('Logout error:',err);safeAlert('Could not log out')}}
 
         if(loading)return React.createElement('div',{className:'panel'},'Loading...');
         if(!session)return React.createElement(LoginScreen,null)
@@ -211,8 +219,15 @@
               React.createElement('div',{style:{marginTop:4,opacity:0.8}},location||''),
               React.createElement('div',{style:{marginTop:8}},bio||'')
             ):React.createElement('div',null,
-              React.createElement('input',{id:'photoInput',type:'file',accept:'image/*',onChange:handlePhotoUpload,style:{display:'none'}}),
-              React.createElement('label',{htmlFor:'photoInput',className:'btn',style:{cursor:'pointer'}},uploadingPhoto?'Uploading...':'Upload Profile Photo'),
+              React.createElement('input',{id:'photoInput',type:'file',accept:'image/*',capture:'user',onChange:handlePhotoSelect,style:{display:'none'}}),
+              React.createElement('label',{htmlFor:'photoInput',className:'btn',style:{cursor:'pointer'}},pendingPhoto?'Choose Different Photo':'Choose Profile Photo'),
+              pendingPhotoUrl?React.createElement('div',{className:'row',style:{marginTop:8,gap:10,alignItems:'center'}},
+                React.createElement('img',{src:pendingPhotoUrl,style:{width:70,height:70,borderRadius:999,objectFit:'cover',border:'2px solid rgba(34,197,94,0.5)'}}),
+                React.createElement('div',{className:'row',style:{gap:8}},
+                  React.createElement('button',{className:'btn primary',onClick:saveProfilePhoto},uploadingPhoto?'Saving...':'Save Photo'),
+                  React.createElement('button',{className:'btn',onClick:cancelProfilePhoto},'Cancel')
+                )
+              ):null,
               React.createElement('div',{style:{height:8}}),
               React.createElement('input',{id:'videoInput',type:'file',accept:'video/*',onChange:handleVideoUpload,style:{display:'none'}}),
               React.createElement('label',{htmlFor:'videoInput',className:'btn',style:{cursor:'pointer'}},uploadingVideo?'Uploading...':'Upload Intro Video (5s max)'),
