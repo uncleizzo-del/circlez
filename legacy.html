@@ -58,7 +58,7 @@
     <div id="root"></div>
 
     <script>
-      const { useState, useEffect } = React;
+      const { useState, useEffect, useRef } = React;
 
       // KEEP YOUR KEYS (unchanged)
       const SUPABASE_URL = "https://ddlcukufdiytyfhpynzo.supabase.co";
@@ -170,9 +170,11 @@
         const [messages,setMessages]=useState([]);
         const [selectedMessenger,setSelectedMessenger]=useState(null);
         const [messageText,setMessageText]=useState('');
+        const [dmUploading,setDmUploading]=useState(false);
         const [conversations,setConversations]=useState([]);
         const [deletingMedia,setDeletingMedia]=useState(null);
         const [openMediaMenu,setOpenMediaMenu]=useState(null); // key string for 3-dots menu
+        const dmFileInputRef=useRef(null);
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
@@ -334,15 +336,20 @@
           if(!session)return;
           const { data, error } = await supabase
             .from('relationships')
-            .select('member_id,circle,profiles!relationships_member_id_fkey(handle,display_name,profile_photo_)')
+            .select('member_id,circle')
             .eq('owner_id',session.user.id)
             .eq('circle',circle);
           if(error){console.error('Stories load error',error);setStoriesMembers([]);return}
-          setStoriesMembers((data||[]).map(r=>({
-            id:r.member_id,
-            handle:r.profiles?.handle||'@member',
-            display_name:r.profiles?.display_name||null,
-            photo:r.profiles?.profile_photo_||null
+          const ids=(data||[]).map(r=>r.member_id).filter(Boolean);
+          if(ids.length===0){setStoriesMembers([]);return}
+          const { data: profs, error: pErr } = await supabase.from('profiles').select('id,handle,display_name,profile_photo_').in('id',ids);
+          if(pErr){console.error('Stories profile load error',pErr);setStoriesMembers([]);return}
+          const map={};(profs||[]).forEach(p=>map[p.id]=p);
+          setStoriesMembers(ids.map(id=>({
+            id,
+            handle:map[id]?.handle||'@member',
+            display_name:map[id]?.display_name||null,
+            photo:map[id]?.profile_photo_||null
           })));
         }
 
@@ -413,27 +420,70 @@
           await loadPostReactions(postId);
         }
 
-        async function sendMessage(recipientId){
-          if(!session||!messageText.trim())return;
-          const { error } = await supabase.from('messages').insert({
+        async function sendMessage(recipientId, mediaUrl=null){
+          if(!session)return;
+          const hasText = messageText.trim().length>0;
+          if(!hasText && !mediaUrl){return;}
+          const payload={
             sender_id:session.user.id,
             recipient_id:recipientId,
-            content:messageText
-          });
+            content:hasText?messageText.trim():null,
+            media_url:mediaUrl
+          };
+          const { error } = await supabase.from('messages').insert(payload);
           if(!error){
             setMessageText('');
             await loadMessages(recipientId);
           }
         }
 
+        async function handleDmFileSelect(e){
+          if(!session||!selectedMessenger)return;
+          const file=e.target.files&&e.target.files[0];
+          if(!file){return;}
+          const isVideo=file.type?.startsWith('video');
+          const maxBytes=isVideo?MAX_POST_VIDEO_BYTES:MAX_POST_IMAGE_BYTES;
+          if(file.size>maxBytes){safeAlert(`File must be under ${Math.round(maxBytes/1024/1024)}MB`);e.target.value='';return;}
+          setDmUploading(true);
+          try{
+            const url=await uploadToBucket(file,session.user.id,'messages');
+            if(url){await sendMessage(selectedMessenger,url);}
+          }catch(err){console.error('DM upload error',err);safeAlert('Could not send media');}
+          setDmUploading(false);
+          e.target.value='';
+        }
+
         async function loadMessages(recipientId){
           if(!session)return;
           const { data, error } = await supabase
             .from('messages')
-            .select('id,sender_id,content,created_at,profiles!messages_sender_id_fkey(handle)')
+            .select('id,sender_id,content,media_url,read_at,created_at,profiles!messages_sender_id_fkey(handle)')
             .or(`and(sender_id.eq.${session.user.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${session.user.id})`)
             .order('created_at',{ascending:true});
-          if(!error){setMessages(data||[])}
+          if(!error){
+            setMessages(data||[]);
+            await markThreadRead(recipientId);
+          }
+        }
+
+        async function markThreadRead(peerId){
+          try{
+            await supabase
+              .from('messages')
+              .update({read_at:new Date().toISOString()})
+              .eq('recipient_id',session.user.id)
+              .eq('sender_id',peerId)
+              .is('read_at',null);
+          }catch(e){console.error('markThreadRead error',e)}
+        }
+
+        function getLastOutgoingReadAt(){
+          if(!session||!messages||messages.length===0)return null;
+          for(let i=messages.length-1;i>=0;i--){
+            const m=messages[i];
+            if(m.sender_id===session.user.id){return m.read_at;}
+          }
+          return null;
         }
 
         async function loadConversations(){
@@ -522,11 +572,15 @@
 
         async function searchUser(){
           if(!searchEmail.trim())return;
-          const { data, error } = await supabase.from('profiles').select('id,handle,display_name,certified').eq('id',(await supabase.auth.admin.getUserByEmail?.(searchEmail))?.data?.user?.id||'').maybeSingle();
-          if(error||!data){
-            const { data: byHandle } = await supabase.from('profiles').select('id,handle,display_name,certified').ilike('handle','%'+searchEmail+'%').limit(1).maybeSingle();
-            setSearchResult(byHandle);
-          } else setSearchResult(data);
+          const q=searchEmail.trim();
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id,handle,display_name,certified')
+            .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
+            .limit(1)
+            .maybeSingle();
+          if(error){console.error('Search user error',error);safeAlert('Could not search right now');return;}
+          setSearchResult(data||null);
         }
 
         async function assignCircle(memberId,circle){
@@ -578,8 +632,17 @@
 
         async function loadMyFollowers(){
           if(!session)return;
-          const { data } = await supabase.from('relationships').select('member_id,circle,profiles!relationships_member_id_fkey(handle,display_name)').eq('owner_id',session.user.id);
-          setMyFollowers(data||[]);
+          const { data, error } = await supabase.from('relationships').select('member_id,circle').eq('owner_id',session.user.id);
+          if(error){console.error('Followers load error',error);setMyFollowers([]);return}
+          const ids=(data||[]).map(r=>r.member_id).filter(Boolean);
+          const { data: profs, error: pErr } = ids.length>0?await supabase.from('profiles').select('id,handle,display_name').in('id',ids):{data:[],error:null};
+          if(pErr){console.error('Follower profile load error',pErr);setMyFollowers(data||[]);return}
+          const map={};(profs||[]).forEach(p=>map[p.id]=p);
+          setMyFollowers((data||[]).map(r=>({
+            member_id:r.member_id,
+            circle:r.circle,
+            profiles:map[r.member_id]||null
+          })));
         }
 
         async function loadMediaGallery(){
@@ -882,15 +945,31 @@
                 selectedMessenger?React.createElement('div',null,
                   React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Chat'),
                   React.createElement('div',{style:{maxHeight:260,overflowY:'auto',padding:8,border:'1px solid rgba(148,163,184,0.15)',borderRadius:8}},
-                    messages.map(m=>React.createElement('div',{key:m.id,style:{marginBottom:6,textAlign:m.sender_id===session.user.id?'right':'left'}},
-                      React.createElement('div',{style:{display:'inline-block',padding:'6px 8px',borderRadius:8,background:m.sender_id===session.user.id?'rgba(34,197,94,0.2)':'rgba(148,163,184,0.12)'}},
-                        m.content||''
-                      )
-                    ))
+                    messages.map(m=>{
+                      const mine=m.sender_id===session.user.id;
+                      const hasMedia=!!m.media_url;
+                      const isVideo=hasMedia&&(m.media_url.includes('.mp4')||m.media_url.includes('video'));
+                      return React.createElement('div',{key:m.id,style:{marginBottom:8,textAlign:mine?'right':'left'}},
+                        React.createElement('div',{style:{display:'inline-block',padding:'6px 8px',borderRadius:8,background:mine?'rgba(34,197,94,0.2)':'rgba(148,163,184,0.12)',maxWidth:320}},
+                          m.content?React.createElement('div',{style:{marginBottom:hasMedia?6:0}},m.content):null,
+                          hasMedia?
+                            React.createElement('div',{style:{maxWidth:260}},
+                              isVideo?
+                                React.createElement('video',{src:m.media_url,style:{width:'100%',height:'auto',borderRadius:6},controls:true}):
+                                React.createElement('img',{src:m.media_url,style:{width:'100%',height:'auto',borderRadius:6,display:'block'}})
+                            )
+                          :null
+                        ),
+                        mine&&m.read_at?React.createElement('div',{className:'meta',style:{fontSize:11,marginTop:2}},'Read'):null
+                      );
+                    })
                   ),
-                  React.createElement('div',{className:'row',style:{marginTop:8,gap:6}},
-                    React.createElement('input',{className:'input',value:messageText,onChange:e=>setMessageText(e.target.value),placeholder:'Message...',style:{flex:1}}),
-                    React.createElement('button',{className:'btn primary',onClick:()=>sendMessage(selectedMessenger)},'Send')
+                  getLastOutgoingReadAt()?React.createElement('div',{className:'meta',style:{textAlign:'right',marginTop:4}},`Last read ${formatDate(getLastOutgoingReadAt())}`):null,
+                  React.createElement('div',{className:'row',style:{marginTop:8,gap:6,alignItems:'center',flexWrap:'wrap'}},
+                    React.createElement('input',{type:'file',accept:'image/*,video/*',ref:dmFileInputRef,onChange:handleDmFileSelect,style:{display:'none'}}),
+                    React.createElement('input',{className:'input',value:messageText,onChange:e=>setMessageText(e.target.value),placeholder:'Message...',style:{flex:1,minWidth:0}}),
+                    React.createElement('button',{className:'btn',onClick:()=>dmFileInputRef.current&&dmFileInputRef.current.click(),disabled:dmUploading},dmUploading?'Uploading...':'Attach'),
+                    React.createElement('button',{className:'btn primary',onClick:()=>sendMessage(selectedMessenger),disabled:dmUploading},dmUploading?'Wait':'Send')
                   )
                 ):React.createElement('div',{className:'meta'},'Select a conversation')
               )
