@@ -497,16 +497,18 @@
 
           React.createElement('div',{className:'panel'},
             React.createElement('div',{style:{fontWeight:700,marginBottom:10}},isAdmin(session?.user)?'Circle Me & Admin':'Circle Me'),
+            
+            isAdmin(session?.user)?React.createElement('div',{style:{marginBottom:12,paddingBottom:12,borderBottom:'1px solid rgba(148,163,184,0.08)'}},
+              React.createElement('div',{style:{fontWeight:700,marginBottom:8,fontSize:14,color:'#22c55e'}},'⚙ ADMIN CONTROLS'),
+              React.createElement('div',{style:{fontWeight:600,marginBottom:6,fontSize:12}},'Change Logo'),
+              React.createElement('input',{id:'logoInput',type:'file',accept:'image/*',onChange:handleLogoUpload,style:{display:'none'}}),
+              React.createElement('label',{htmlFor:'logoInput',className:'btn',style:{cursor:'pointer',display:'block',textAlign:'center'}},uploadingLogo?'Uploading...':'📤 Upload New Logo')
+            ):null,
+
             React.createElement('div',{className:'row'},
               React.createElement('input',{className:'input',style:{flex:1},value:searchEmail,onChange:e=>setSearchEmail(e.target.value),placeholder:'Search by email or handle'}),
               React.createElement('button',{className:'btn',onClick:searchUser},'Search')
             ),
-            isAdmin(session?.user)?React.createElement('div',{style:{marginTop:12,paddingTop:12,borderTop:'1px solid rgba(148,163,184,0.08)'}},
-              React.createElement('div',{style:{fontWeight:700,marginBottom:8,fontSize:14}},'Admin: Change Logo'),
-              React.createElement('input',{id:'logoInput',type:'file',accept:'image/*',onChange:handleLogoUpload,style:{display:'none'}}),
-              React.createElement('label',{htmlFor:'logoInput',className:'btn',style:{cursor:'pointer'}},uploadingLogo?'Uploading...':'Upload New Logo'),
-              React.createElement('div',{style:{fontSize:12,opacity:0.6,marginTop:4}},logoUrl?'Current logo loaded':'Using default')
-            ):null,
             searchResult?React.createElement('div',{style:{marginTop:10}},
               React.createElement('div',{style:{marginBottom:8}},searchResult.display_name||searchResult.handle),
               React.createElement('div',{className:'chips'},circleOptions.map(c=>React.createElement('button',{key:c,className:'chip',onClick:()=>assignCircle(searchResult.id,c)},c))),
