@@ -114,6 +114,26 @@
         )
       }
 
+      function PrivateBadge({size=20}){
+        return React.createElement('svg',{width:size,height:size,viewBox:'0 0 100 100',style:{display:'inline-block',verticalAlign:'middle',filter:'drop-shadow(0 2px 4px rgba(239,68,68,0.5))'}},
+          React.createElement('defs',null,
+            React.createElement('path',{id:'privateCirclePath',d:'M 50 50 m -40 0 a 40 40 0 1 1 80 0 a 40 40 0 1 1 -80 0'}),
+            React.createElement('linearGradient',{id:'privateStampGrad',x1:'0%',y1:'0%',x2:'100%',y2:'100%'},
+              React.createElement('stop',{offset:'0%',style:{stopColor:'#ef4444',stopOpacity:1}}),
+              React.createElement('stop',{offset:'100%',style:{stopColor:'#dc2626',stopOpacity:1}})
+            )
+          ),
+          React.createElement('circle',{cx:50,cy:50,r:48,fill:'url(#privateStampGrad)',stroke:'#ef4444',strokeWidth:2,opacity:0.95}),
+          React.createElement('circle',{cx:50,cy:50,r:42,fill:'none',stroke:'#ef4444',strokeWidth:1,strokeDasharray:'2,3',opacity:0.6}),
+          React.createElement('text',{fontSize:9,fontWeight:'bold',fill:'white',letterSpacing:1.5},
+            React.createElement('textPath',{href:'#privateCirclePath',startOffset:'50%',textAnchor:'middle'},'PRIVATE • CIRCLEZ')
+          ),
+          React.createElement('circle',{cx:50,cy:50,r:28,fill:'#dc2626'}),
+          React.createElement('text',{x:50,y:56,textAnchor:'middle',fontSize:36,fontWeight:'900',fill:'white',fontFamily:'Impact'},'P'),
+          React.createElement('circle',{cx:50,cy:50,r:28,fill:'none',stroke:'#ef4444',strokeWidth:1.5,opacity:0.8})
+        )
+      }
+
       function LoginScreen({onSignIn}){
         return React.createElement('div',{className:'panel panel-login'},
           React.createElement('div',{className:'brand'},
@@ -1036,9 +1056,9 @@
                     React.createElement('div',{className:'panel-title'},'Chat'),
                     React.createElement('div',{style:{marginLeft:'auto',display:'flex',gap:4}},
                       React.createElement('button',{className:'btn',onClick:()=>startCmVideoCall(selectedMessenger,false),disabled:!!activeCmCall},'📹 Live CM'),
-                      React.createElement('button',{onClick:()=>startCmVideoCall(selectedMessenger,true),disabled:!!activeCmCall,style:{position:'relative',background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.4)',borderRadius:999,padding:'8px 40px 8px 50px',cursor:!!activeCmCall?'not-allowed':'pointer',color:'#fff',fontWeight:600}},
-                        React.createElement('div',{style:{position:'absolute',left:8,top:'50%',transform:'translateY(-50%)',width:32,height:32,borderRadius:999,background:'#ef4444',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:900,color:'white',boxShadow:'0 0 10px rgba(239,68,68,0.5)'}},'CZ'),
-                        React.createElement('span',{style:{position:'relative'}},'PRIVATE')
+                      React.createElement('button',{className:'btn',onClick:()=>startCmVideoCall(selectedMessenger,true),disabled:!!activeCmCall,style:{display:'flex',alignItems:'center',gap:6}},
+                        React.createElement(PrivateBadge,{size:20}),
+                        'Private CM'
                       )
                     )
                   ),
