@@ -1043,7 +1043,7 @@
           ),
 
           React.createElement('div',{className:'panel'},
-            React.createElement('div',{className:'panel-title-row row'},React.createElement('div',{style:{fontWeight:700}},'Compose'),React.createElement('div',null,React.createElement('span',{className:'chip'},'Choose circle'))),
+            React.createElement('div',{className:'panel-title-row row'},React.createElement('div',{style:{fontWeight:700}},'Compose')),
             React.createElement('div',{style:{height:6}}),
             React.createElement('textarea',{className:'textarea',value:content,onChange:e=>setContent(e.target.value),placeholder:'Drop a thought…'}),
             React.createElement('div',{style:{height:8}}),
@@ -1063,8 +1063,10 @@
               composeMedia.length>0?React.createElement('button',{className:'btn primary glow',onClick:post,disabled:composingMedia,style:{flex:1}},composingMedia?'Posting...':'✓ Save Post'):null,
               composeMedia.length>0?React.createElement('button',{className:'btn',onClick:()=>setComposeMedia([])},'Clear'):null
             ),
-            React.createElement('div',null,React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Circlez'),React.createElement('div',{className:'chips'},circleOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedCircles.includes(label)?' selected':''),onClick:()=>toggle(setSelectedCircles,selectedCircles,label)},label)))),
-            React.createElement('div',{style:{height:10}}),
+            React.createElement('div',{style:{marginBottom:10}},
+              React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Choose circle'),
+              React.createElement('div',{className:'chips'},circleOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedCircles.includes(label)?' selected':''),onClick:()=>toggle(setSelectedCircles,selectedCircles,label)},label)))
+            ),
             React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0||composeMedia.length>0?' glow':''),onClick:post,disabled:composingMedia},composingMedia?'Posting...':'Post to Circlez'))
           ),
 
