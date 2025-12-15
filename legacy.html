@@ -453,7 +453,9 @@
 
         function toggleComments(postId){
           setOpenComments(prev=>({...prev,[postId]:!prev[postId]}));
-          if(!openComments[postId]){loadPostComments(postId)}
+          if(!openComments[postId]){
+            loadPostComments(postId)
+          }
         }
 
         async function handleVideoReplySelect(e, postId, recipientId){
