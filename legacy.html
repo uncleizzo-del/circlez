@@ -854,7 +854,6 @@
             React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},
               React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),
               React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()}},'Media'),
-              !activeStream?React.createElement('button',{className:'btn primary glow',onClick:()=>{setCurrentView('live');loadLiveStreams()}},'🔴 Private CM'):null,
               React.createElement('button',{className:'btn',onClick:logout},'Log out')
             ),
             React.createElement('div',{style:{height:8}}),
