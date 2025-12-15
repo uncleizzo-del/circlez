@@ -147,7 +147,7 @@
         const [selectedMoods,setSelectedMoods]=useState([]);
         const [feed,setFeed]=useState([]);
         const [loadingFeed,setLoadingFeed]=useState(false);
-        const [storiesCircle,setStoriesCircle]=useState('Family');
+        const [storiesCircle,setStoriesCircle]=useState('All');
         const [storiesMembers,setStoriesMembers]=useState([]);
         const [storyOpen,setStoryOpen]=useState(null);
         const [storyPosts,setStoryPosts]=useState([]);
@@ -334,6 +334,17 @@
 
         async function loadStories(circle){
           if(!session)return;
+          if(circle==='All'){
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('id,handle,display_name,profile_photo_')
+              .neq('id',session.user.id)
+              .order('display_name',{ascending:true})
+              .limit(500);
+            if(error){console.error('Stories load error',error);setStoriesMembers([]);return}
+            setStoriesMembers((data||[]).map(p=>({id:p.id,handle:p.handle||'@member',display_name:p.display_name||null,photo:p.profile_photo_||null})));
+            return;
+          }
           const { data, error } = await supabase
             .from('relationships')
             .select('member_id,circle')
@@ -739,7 +750,7 @@
           React.createElement('div',{className:'panel'},
             React.createElement('div',{className:'row',style:{marginBottom:8}},
               React.createElement('div',{style:{fontWeight:700}},'Stories'),
-              React.createElement('div',{className:'chips'},['Family','Close Friends','Work','Community','Fans / Public'].map(label=>React.createElement('button',{key:label,className:'chip'+(storiesCircle===label?' selected':''),onClick:()=>setStoriesCircle(label)},label)))
+              React.createElement('div',{className:'chips'},['All','Family','Close Friends','Work','Community','Fans / Public'].map(label=>React.createElement('button',{key:label,className:'chip'+(storiesCircle===label?' selected':''),onClick:()=>setStoriesCircle(label)},label)))
             ),
             React.createElement('div',{className:'stories'},
               storiesMembers.length===0?React.createElement('div',{className:'meta'},'No people in this circle yet.'):
