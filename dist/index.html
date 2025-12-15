@@ -350,9 +350,7 @@
 
         async function loadLogo(){
           try{
-            const { data, error } = await supabase.storage.from('media').list('admin');
-            if(error||!data||data.length===0){console.log('No logo file');return}
-            const url = supabase.storage.from('media').getPublicUrl('admin/cz-logo.png').data.publicUrl+'?t='+Date.now();
+            const url = supabase.storage.from('media').getPublicUrl('cz-logo.png').data.publicUrl+'?t='+Date.now();
             console.log('Logo URL:',url);
             setLogoUrl(url);
           }catch(err){console.error('Logo load error:',err)}
@@ -365,11 +363,11 @@
           if(!file.type.startsWith('image/')){safeAlert('Please upload an image');return}
           try{
             setUploadingLogo(true);
-            const path = 'admin/cz-logo.png';
+            const path = 'cz-logo.png';
             const { error } = await supabase.storage.from('media').upload(path, file, {upsert:true});
-            if(error){console.error('Logo upload error:',error);safeAlert('Failed to upload logo')}
+            if(error){console.error('Logo upload error:',error);safeAlert('Failed to upload: '+error.message)}
             else{
-              const url = 'https://ddlcukufdiytyfhpynzo.supabase.co/storage/v1/object/public/media/admin/cz-logo.png?t='+Date.now();
+              const url = supabase.storage.from('media').getPublicUrl(path).data.publicUrl+'?t='+Date.now();
               setLogoUrl(url);
               safeAlert('Logo updated!');
             }
