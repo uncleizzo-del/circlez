@@ -116,7 +116,7 @@
       function LoginScreen({onSignIn}){
         return React.createElement('div',{className:'panel panel-login'},
           React.createElement('div',{className:'brand'},
-            React.createElement('img',{src:'cz-logo.png',alt:'CIRCLEZ',className:'brand-logo',style:{width:44,height:44}}),
+            React.createElement('img',{src:'cz-logo.png?v='+Date.now(),alt:'CIRCLEZ',className:'brand-logo',style:{width:44,height:44}}),
             React.createElement('div',null,
               React.createElement('div',{className:'brand-title'},'CIRCLEZ')
             )
@@ -577,6 +577,18 @@
           setMediaGallery(items);
         }
 
+        async function copyLink(url){
+          try{
+            if(navigator?.clipboard?.writeText){
+              await navigator.clipboard.writeText(url);
+            }else{
+              const ta=document.createElement('textarea');
+              ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+            }
+            safeAlert('Link copied');
+          }catch(err){console.error('Copy link error',err);safeAlert('Could not copy link')}
+        }
+
         function getBucketPathFromUrl(u){
           try{
             if(!u)return null;
@@ -803,7 +815,9 @@
                         React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.85)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:800,letterSpacing:1}},'CIRCLEZ'),
                         canDelete?React.createElement('div',{style:{position:'absolute',top:4,right:4}},
                           React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)} ,style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
-                          openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                          openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:140,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                            React.createElement('button',{onClick:(e)=>{e.stopPropagation();copyLink(url);setOpenMediaMenu(null)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#e5e7eb',padding:'8px 10px',cursor:'pointer'}},'Copy Link'),
+                            React.createElement('div',{style:{height:1,background:'rgba(148,163,184,0.15)'}}),
                             React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(p.id,url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
                           ):null
                         ):null
@@ -832,7 +846,9 @@
                 React.createElement('img',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'}}),
                 React.createElement('div',{style:{position:'absolute',top:4,right:4}},
                   React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)},style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
-                  openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                  openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:140,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                    React.createElement('button',{onClick:(e)=>{e.stopPropagation();copyLink(item.url);setOpenMediaMenu(null)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#e5e7eb',padding:'8px 10px',cursor:'pointer'}},'Copy Link'),
+                    React.createElement('div',{style:{height:1,background:'rgba(148,163,184,0.15)'}}),
                     React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(item.id,item.url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
                   ):null
                 ),
