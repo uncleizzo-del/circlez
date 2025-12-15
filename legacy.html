@@ -104,15 +104,15 @@
 
         async function loadFeed(){
           setLoadingFeed(true);
-          let res = await supabase.from('posts').select('id,content,created_at,author_id,author_handle').order('created_at',{ascending:false}).limit(50);
+          let res = await supabase.from('posts').select('id,content,created_at,author_id,author_handle,circlez,mood').order('created_at',{ascending:false}).limit(50);
           if(res.error){console.error('Feed error:',res.error);setLoadingFeed(false);return}
           const rows = res.data||[];
-          setFeed(rows.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,author_id:p.author_id,author_handle:p.author_handle||''})))
+          setFeed(rows.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,circlez:p.circlez||[],mood:p.mood||[],author_id:p.author_id,author_handle:p.author_handle||''})))
           setLoadingFeed(false)
         }
 
         async function post(){
-          if(!session||!content.trim())return;const user=session.user;const payload={content:content.trim(),author_id:user.id,author_handle:(profile?.handle||getHandleForUser(user))};
+          if(!session||!content.trim())return;const user=session.user;const payload={content:content.trim(),author_id:user.id,author_handle:(profile?.handle||getHandleForUser(user)),circlez:selectedCircles,mood:selectedMoods};
           const { error } = await supabase.from('posts').insert(payload);
           if(error){console.error('Post error',error);safeAlert('Could not post');return}
           setContent('');setSelectedMoods([]);await loadFeed();
