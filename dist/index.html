@@ -86,6 +86,7 @@
         const [fontStyle,setFontStyle]=useState('default');
         const [uploadingPhoto,setUploadingPhoto]=useState(false);
         const [uploadingVideo,setUploadingVideo]=useState(false);
+        const [editingProfile,setEditingProfile]=useState(false);
 
         const [content,setContent]=useState('');
         const [selectedCircles,setSelectedCircles]=useState(['Family']);
@@ -198,23 +199,29 @@
           React.createElement('div',{className:'brand'},React.createElement('div',{className:'orb'+(content.length>0?' glow':'')},'CZ'),React.createElement('div',{className:'brand-title'},'CIRCLEZ')),
 
           React.createElement('div',{className:'panel'},
-            React.createElement('div',{className:'row'},React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontWeight:700}} , handle)),React.createElement('div',null,React.createElement('button',{className:'btn',onClick:logout},'Log out'))),
+            React.createElement('div',{className:'row'},React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontWeight:700}} , handle)),React.createElement('div',{className:'row',style:{gap:6}},React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),React.createElement('button',{className:'btn',onClick:logout},'Log out'))),
             React.createElement('div',{style:{height:8}}),
             profile?.profile_photo_?React.createElement('div',{style:{marginBottom:8}},React.createElement('img',{src:profile.profile_photo_,style:{width:80,height:80,borderRadius:999,objectFit:'cover',border:'2px solid rgba(34,197,94,0.5)'}})):null,
-            React.createElement('div',null,React.createElement('label',{style:{cursor:'pointer'}},React.createElement('input',{type:'file',accept:'image/*',onChange:handlePhotoUpload,style:{display:'none'}}),React.createElement('button',{className:'btn',onClick:e=>{e.preventDefault();e.target.previousSibling.click()}},uploadingPhoto?'Uploading...':'Upload Profile Photo'))),
-            React.createElement('div',{style:{height:8}}),
             profile?.avatar_url?React.createElement('div',{style:{marginBottom:8}},React.createElement('video',{src:profile.avatar_url,controls:true,style:{width:'100%',maxWidth:300,borderRadius:8,border:'2px solid rgba(34,197,94,0.5)'}})):null,
-            React.createElement('div',null,React.createElement('label',{style:{cursor:'pointer'}},React.createElement('input',{type:'file',accept:'video/*',onChange:handleVideoUpload,style:{display:'none'}}),React.createElement('button',{className:'btn',onClick:e=>{e.preventDefault();e.target.previousSibling.click()}},uploadingVideo?'Uploading...':'Upload Intro Video (5s max)'))),
-            React.createElement('div',{style:{height:8}}),
-            React.createElement('div',null,React.createElement('input',{className:'input',value:displayName,onChange:e=>setDisplayName(e.target.value),placeholder:'Display name'})),
-            React.createElement('div',{style:{height:8}}),
-            React.createElement('div',null,React.createElement('input',{className:'input',value:location,onChange:e=>setLocation(e.target.value),placeholder:'Location'})),
-            React.createElement('div',{style:{height:8}}),
-            React.createElement('div',null,React.createElement('textarea',{className:'textarea',value:bio,onChange:e=>setBio(e.target.value),placeholder:'Bio'})),
-            React.createElement('div',{style:{height:8}}),
-            React.createElement('div',null,React.createElement('div',{style:{marginBottom:6,fontWeight:700}},'Font Style'),React.createElement('div',{className:'chips'},fontOptions.map(f=>React.createElement('button',{key:f.value,className:'chip'+(fontStyle===f.value?' selected':''),onClick:()=>setFontStyle(f.value)},f.label)))),
-            React.createElement('div',{style:{height:8}}),
-            React.createElement('div',null,React.createElement('button',{className:'btn',onClick:saveProfile},'Save profile'))
+            !editingProfile?React.createElement('div',null,
+              React.createElement('div',{style:{marginTop:8}},displayName?React.createElement('div',{style:{marginBottom:4}},displayName):null),
+              React.createElement('div',{style:{marginTop:4,opacity:0.8}},location||''),
+              React.createElement('div',{style:{marginTop:8}},bio||'')
+            ):React.createElement('div',null,
+              React.createElement('div',null,React.createElement('label',{style:{cursor:'pointer'}},React.createElement('input',{type:'file',accept:'image/*',onChange:handlePhotoUpload,style:{display:'none'}}),React.createElement('button',{className:'btn',onClick:e=>{e.preventDefault();e.target.previousSibling.click()}},uploadingPhoto?'Uploading...':'Upload Profile Photo'))),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('label',{style:{cursor:'pointer'}},React.createElement('input',{type:'file',accept:'video/*',onChange:handleVideoUpload,style:{display:'none'}}),React.createElement('button',{className:'btn',onClick:e=>{e.preventDefault();e.target.previousSibling.click()}},uploadingVideo?'Uploading...':'Upload Intro Video (5s max)'))),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('input',{className:'input',value:displayName,onChange:e=>setDisplayName(e.target.value),placeholder:'Display name'})),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('input',{className:'input',value:location,onChange:e=>setLocation(e.target.value),placeholder:'Location'})),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('textarea',{className:'textarea',value:bio,onChange:e=>setBio(e.target.value),placeholder:'Bio'})),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('div',{style:{marginBottom:6,fontWeight:700}},'Font Style'),React.createElement('div',{className:'chips'},fontOptions.map(f=>React.createElement('button',{key:f.value,className:'chip'+(fontStyle===f.value?' selected':''),onClick:()=>setFontStyle(f.value)},f.label)))),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('button',{className:'btn primary',onClick:saveProfile},'Save profile'))
+            )
           ),
 
           React.createElement('div',{className:'panel'},
