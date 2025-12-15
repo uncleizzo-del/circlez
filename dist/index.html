@@ -6,26 +6,27 @@
     <title>CIRCLEZ</title>
     <style>
       :root{--bg:#071126;--panel:rgba(2,6,23,0.45);--muted:rgba(229,231,235,0.8);--accent:#22c55e}
-      html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+      *{box-sizing:border-box}
+      html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;overflow-x:hidden}
       body{background:linear-gradient(180deg,#02030a 0%,#071126 60%);color:var(--muted);-webkit-font-smoothing:antialiased}
-      #root{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:18px}
-      .app{width:100%;max-width:760px}
+      #root{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-x:hidden}
+      .app{width:100%;max-width:760px;overflow-x:hidden}
       .brand{display:flex;align-items:center;gap:12px;margin-bottom:12px}
       .orb{width:44px;height:44px;border-radius:999px;background:radial-gradient(circle at 20% 20%,var(--accent),#081028);display:grid;place-items:center;font-weight:800;color:#e6eef0;transition:box-shadow 0.3s ease}
       .orb.glow{box-shadow:0 0 20px rgba(34,197,94,0.6),0 0 40px rgba(34,197,94,0.4)}
       .brand-title{font-weight:800;letter-spacing:2px;font-size:18px}
 
       .panel{background:var(--panel);border:1px solid rgba(148,163,184,0.08);border-radius:14px;padding:12px;margin-bottom:12px}
-      .row{display:flex;gap:8px;align-items:center}
-      .input,.textarea{width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(148,163,184,0.08);background:transparent;color:var(--muted);padding:8px}
-      .textarea{min-height:80px}
-      .btn{background:transparent;border:1px solid rgba(148,163,184,0.12);color:var(--muted);border-radius:999px;padding:8px 12px;cursor:pointer;transition:box-shadow 0.3s ease}
+      .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .input,.textarea{width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(148,163,184,0.08);background:transparent;color:var(--muted);padding:8px;font-size:16px}
+      .textarea{min-height:80px;resize:vertical}
+      .btn{background:transparent;border:1px solid rgba(148,163,184,0.12);color:var(--muted);border-radius:999px;padding:8px 12px;cursor:pointer;transition:box-shadow 0.3s ease;white-space:nowrap;font-size:14px}
       .btn.primary{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#e6fff0}
       .btn.primary.glow{box-shadow:0 0 20px rgba(34,197,94,0.5),0 0 30px rgba(34,197,94,0.3)}
       .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-      .chip{padding:8px 16px;border-radius:999px;border:1.5px solid rgba(34,197,94,0.5);background:rgba(0,0,0,0.3);color:rgba(34,197,94,0.9);cursor:pointer;box-shadow:0 0 10px rgba(34,197,94,0.3),inset 0 1px 1px rgba(34,197,94,0.1);transition:all 0.3s ease;font-weight:500}
+      .chip{padding:8px 12px;border-radius:999px;border:1.5px solid rgba(34,197,94,0.5);background:rgba(0,0,0,0.3);color:rgba(34,197,94,0.9);cursor:pointer;box-shadow:0 0 10px rgba(34,197,94,0.3),inset 0 1px 1px rgba(34,197,94,0.1);transition:all 0.3s ease;font-weight:500;font-size:13px;flex-shrink:0}
       .chip.selected{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.8);color:#e6fff0;box-shadow:0 0 15px rgba(34,197,94,0.5),0 0 25px rgba(34,197,94,0.3),inset 0 1px 1px rgba(34,197,94,0.2)}
-      .post{padding:10px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);margin-bottom:10px}
+      .post{padding:10px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);margin-bottom:10px;word-wrap:break-word}
       .post .meta{font-size:12px;opacity:0.8}
       .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 
