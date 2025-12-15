@@ -18,6 +18,7 @@
       .orb{width:44px;height:44px;border-radius:999px;background:radial-gradient(circle at 20% 20%,var(--accent),#081028);display:grid;place-items:center;font-weight:800;color:#e6eef0;transition:box-shadow 0.3s ease}
       .orb.glow{box-shadow:0 0 20px rgba(34,197,94,0.6),0 0 40px rgba(34,197,94,0.4)}
       .brand-title{font-weight:800;letter-spacing:2px;font-size:18px}
+      .brand-logo{width:44px;height:44px;border-radius:999px;object-fit:cover;display:block}
 
       .panel{background:var(--panel);border:1px solid rgba(148,163,184,0.08);border-radius:14px;padding:12px;margin-bottom:12px}
       .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -32,6 +33,13 @@
       .post{padding:10px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);margin-bottom:10px;word-wrap:break-word}
       .post .meta{font-size:12px;opacity:0.8}
       .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+
+      .stories{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+      .story{display:flex;flex-direction:column;align-items:center;gap:6px}
+      .story-ring{width:58px;height:58px;border-radius:999px;padding:2px;background:radial-gradient(60% 60% at 50% 50%, rgba(34,197,94,0.5), rgba(34,197,94,0.15));box-shadow:0 0 18px rgba(34,197,94,0.3)}
+      .story-ava{width:54px;height:54px;border-radius:999px;object-fit:cover;border:2px solid rgba(0,0,0,0.4);background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:#bfffd5;font-weight:700}
+      .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:50}
+      .overlay-card{width:min(92vw,520px);max-height:86vh;overflow:auto;background:rgba(2,6,23,0.85);border:1px solid rgba(148,163,184,0.15);border-radius:12px;padding:14px}
 
       .font-default{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
       .font-serif{font-family:Georgia,Cambria,Times New Roman,serif}
@@ -98,6 +106,11 @@
         const [selectedMoods,setSelectedMoods]=useState([]);
         const [feed,setFeed]=useState([]);
         const [loadingFeed,setLoadingFeed]=useState(false);
+        const [storiesCircle,setStoriesCircle]=useState('Family');
+        const [storiesMembers,setStoriesMembers]=useState([]);
+        const [storyOpen,setStoryOpen]=useState(null);
+        const [storyPosts,setStoryPosts]=useState([]);
+        const [storyIndex,setStoryIndex]=useState(0);
         
         const [searchEmail,setSearchEmail]=useState('');
         const [searchResult,setSearchResult]=useState(null);
@@ -111,6 +124,8 @@
           const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadFeed()}else{setProfile(null);setFeed([])}})
           return ()=>listener.subscription.unsubscribe();
         },[])
+
+        useEffect(()=>{if(session){loadStories(storiesCircle)}},[session,storiesCircle])
 
         async function loadProfile(user){
           if(!user)return;
@@ -166,6 +181,37 @@
           setLoadingFeed(false)
         }
 
+        async function loadStories(circle){
+          if(!session)return;
+          const { data, error } = await supabase
+            .from('relationships')
+            .select('member_id,circle,profiles!relationships_member_id_fkey(handle,display_name,profile_photo_)')
+            .eq('owner_id',session.user.id)
+            .eq('circle',circle);
+          if(error){console.error('Stories load error',error);setStoriesMembers([]);return}
+          setStoriesMembers((data||[]).map(r=>({
+            id:r.member_id,
+            handle:r.profiles?.handle||'@member',
+            display_name:r.profiles?.display_name||null,
+            photo:r.profiles?.profile_photo_||null
+          })));
+        }
+
+        async function openStory(member){
+          setStoryOpen(member);setStoryIndex(0);setStoryPosts([]);
+          const { data, error } = await supabase
+            .from('posts')
+            .select('id,content,created_at')
+            .eq('author_id',member.id)
+            .order('created_at',{ascending:false})
+            .limit(10);
+          if(error){console.error('Load story posts',error);return}
+          setStoryPosts(data||[]);
+        }
+        function closeStory(){setStoryOpen(null);setStoryPosts([]);setStoryIndex(0)}
+        function nextStory(){setStoryIndex(i=>Math.min(i+1,Math.max(0,storyPosts.length-1)))}
+        function prevStory(){setStoryIndex(i=>Math.max(i-1,0))}
+
         async function post(){
           if(!session||!content.trim())return;const user=session.user;const payload={content:content.trim(),author_id:user.id,author_handle:(profile?.handle||getHandleForUser(user)),circlez:selectedCircles,mood:selectedMoods};
           const { error } = await supabase.from('posts').insert(payload);
@@ -207,9 +253,46 @@
         const fontOptions=[{value:'default',label:'Default'},{value:'serif',label:'Serif'},{value:'mono',label:'Mono'},{value:'rounded',label:'Rounded'},{value:'display',label:'Display'}];
 
         return React.createElement('div',{className:'app font-'+fontStyle},
-          React.createElement('div',{className:'brand'},React.createElement('div',{className:'orb'+(content.length>0?' glow':'')},'CZ'),React.createElement('div',{className:'brand-title'},'CIRCLEZ')),
+          React.createElement('div',{className:'brand'},
+            React.createElement('img',{src:'cz-logo.png',alt:'CIRCLEZ',className:'brand-logo',onError:e=>{e.target.style.display='none'}}),
+            React.createElement('div',{className:'orb'+(content.length>0?' glow':'')},'CZ'),
+            React.createElement('div',{className:'brand-title'},'CIRCLEZ')
+          ),
 
           React.createElement('div',{className:'panel'},
+            React.createElement('div',{className:'row',style:{marginBottom:8}},
+              React.createElement('div',{style:{fontWeight:700}},'Stories'),
+              React.createElement('div',{className:'chips'},['Family','Close Friends','Work','Community','Fans / Public'].map(label=>React.createElement('button',{key:label,className:'chip'+(storiesCircle===label?' selected':''),onClick:()=>setStoriesCircle(label)},label)))
+            ),
+            React.createElement('div',{className:'stories'},
+              storiesMembers.length===0?React.createElement('div',{className:'meta'},'No people in this circle yet.'):
+              storiesMembers.map(m=>React.createElement('div',{key:m.id,className:'story'},
+                React.createElement('div',{className:'story-ring'},
+                  m.photo?React.createElement('img',{src:m.photo,className:'story-ava',onClick:()=>openStory(m)}):
+                  React.createElement('div',{className:'story-ava',onClick:()=>openStory(m)},(m.handle||'@u')[1]?.toUpperCase()||'U')
+                ),
+                React.createElement('div',{style:{fontSize:12,opacity:0.9,maxWidth:70,textAlign:'center'}},(m.display_name||m.handle).replace('@',''))
+              ))
+            )
+          ),
+
+          storyOpen?React.createElement('div',{className:'overlay',onClick:closeStory},
+            React.createElement('div',{className:'overlay-card',onClick:e=>e.stopPropagation()},
+              React.createElement('div',{className:'row',style:{marginBottom:8}},
+                React.createElement('div',{style:{fontWeight:700}},storyOpen.display_name||storyOpen.handle),
+                React.createElement('div',{style:{marginLeft:'auto'}},
+                  React.createElement('button',{className:'btn',onClick:prevStory},'Prev'),
+                  React.createElement('button',{className:'btn',onClick:nextStory,style:{marginLeft:6}},'Next'),
+                  React.createElement('button',{className:'btn',onClick:closeStory,style:{marginLeft:6}},'Close')
+                )
+              ),
+              storyPosts.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
+              React.createElement('div',null,
+                React.createElement('div',{className:'meta'},new Date(storyPosts[storyIndex]?.created_at||Date.now()).toLocaleString()),
+                React.createElement('div',{style:{marginTop:10,fontSize:18,lineHeight:1.4}},storyPosts[storyIndex]?.content||'')
+              )
+            )
+          ):null,
             React.createElement('div',{className:'row',style:{alignItems:'center',marginBottom:8}},profile?.profile_photo_?React.createElement('img',{src:profile.profile_photo_,style:{width:50,height:50,borderRadius:999,objectFit:'cover',border:'2px solid rgba(34,197,94,0.5)',marginRight:10}}):React.createElement('div',{style:{width:50,height:50,borderRadius:999,background:'rgba(34,197,94,0.15)',border:'2px solid rgba(34,197,94,0.5)',marginRight:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'rgba(34,197,94,0.9)'}},handle?handle[1].toUpperCase():'?'),React.createElement('div',{style:{flex:1,minWidth:0}},React.createElement('div',{style:{fontWeight:700}} , handle))),
             React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),React.createElement('button',{className:'btn',onClick:logout},'Log out')),
             React.createElement('div',{style:{height:8}}),
