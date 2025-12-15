@@ -67,6 +67,8 @@
 
       const MAX_INTRO_VIDEO_BYTES = 25 * 1024 * 1024;
       const MAX_PROFILE_PHOTO_BYTES = 10 * 1024 * 1024;
+      const MAX_POST_VIDEO_BYTES = 150 * 1024 * 1024;
+      const MAX_POST_IMAGE_BYTES = 10 * 1024 * 1024;
 
       function safeAlert(msg){try{alert(msg)}catch(e){console.error(msg)}}
       async function uploadToBucket(file,userId,folder){
@@ -348,7 +350,12 @@
             const isImage=file.type.startsWith('image/');
             if(!isVideo&&!isImage){safeAlert('Please select an image or video');return null}
             const maxSize=isVideo?MAX_POST_VIDEO_BYTES:MAX_POST_IMAGE_BYTES;
-            if(file.size>maxSize){safeAlert('File too large');return null}
+            if(file.size>maxSize){
+              const maxMB=Math.floor(maxSize/(1024*1024));
+              const fileMB=(file.size/(1024*1024)).toFixed(1);
+              safeAlert(`File too large: ${fileMB}MB (max ${maxMB}MB for ${isVideo?'videos':'images'})`);
+              return null
+            }
             return{file,url:URL.createObjectURL(file),type:isVideo?'video':'image'};
           }).filter(Boolean);
           setComposeMedia(prev=>[...prev,...newMedia]);
