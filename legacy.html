@@ -624,11 +624,16 @@
             .select('id,handle,display_name,profile_photo_')
             .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
             .neq('id',session.user.id)
-            .limit(1)
-            .maybeSingle();
-          if(error){console.error('CM search error',error);return;}
-          if(data && bannedUsersGlobal.includes(data.id)){safeAlert('User is banned');setCmSearchResult(null);return;}
-          setCmSearchResult(data||null);
+            .limit(5);
+          if(error){
+            if(error.code==='PGRST116'){safeAlert('Too many matches, refine search');return;}
+            console.error('CM search error',q,error);
+            safeAlert(error.message||'Could not search right now');
+            return;
+          }
+          const match=Array.isArray(data)?data[0]:null;
+          if(match && bannedUsersGlobal.includes(match.id)){safeAlert('User is banned');setCmSearchResult(null);return;}
+          setCmSearchResult(match||null);
         }
 
         async function startCmVideoCall(recipientId, isPrivate=false){
@@ -744,10 +749,15 @@
             .from('profiles')
             .select('id,handle,display_name,certified,banned')
             .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
-            .limit(1)
-            .maybeSingle();
-          if(error){console.error('Search user error',error);safeAlert('Could not search right now');return;}
-          setSearchResult(data||null);
+            .limit(5);
+          if(error){
+            if(error.code==='PGRST116'){safeAlert('Too many matches, refine search');return;}
+            console.error('Search user error',q,error);
+            safeAlert(error.message||'Could not search right now');
+            return;
+          }
+          const match=Array.isArray(data)?data[0]:null;
+          setSearchResult(match||null);
         }
 
         async function assignCircle(memberId,circle){
@@ -1044,6 +1054,10 @@
 
           React.createElement('div',{className:'panel'},
             React.createElement('div',{className:'panel-title-row row'},React.createElement('div',{style:{fontWeight:700}},'Compose')),
+            React.createElement('div',{style:{marginBottom:10}},
+              React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Choose circle'),
+              React.createElement('div',{className:'chips'},circleOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedCircles.includes(label)?' selected':''),onClick:()=>toggle(setSelectedCircles,selectedCircles,label)},label)))
+            ),
             React.createElement('div',{style:{height:6}}),
             React.createElement('textarea',{className:'textarea',value:content,onChange:e=>setContent(e.target.value),placeholder:'Drop a thought…'}),
             React.createElement('div',{style:{height:8}}),
@@ -1062,10 +1076,6 @@
               React.createElement('label',{htmlFor:'composeMediaInput',className:'chip',style:{cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,fontWeight:700,letterSpacing:0.2}},'📷','Add Media'),
               composeMedia.length>0?React.createElement('button',{className:'btn primary glow',onClick:post,disabled:composingMedia,style:{flex:1}},composingMedia?'Posting...':'✓ Save Post'):null,
               composeMedia.length>0?React.createElement('button',{className:'btn',onClick:()=>setComposeMedia([])},'Clear'):null
-            ),
-            React.createElement('div',{style:{marginBottom:10}},
-              React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Choose circle'),
-              React.createElement('div',{className:'chips'},circleOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedCircles.includes(label)?' selected':''),onClick:()=>toggle(setSelectedCircles,selectedCircles,label)},label)))
             ),
             React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0||composeMedia.length>0?' glow':''),onClick:post,disabled:composingMedia},composingMedia?'Posting...':'Post to Circlez'))
           ),
