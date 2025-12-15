@@ -178,6 +178,7 @@
         const [deletingMedia,setDeletingMedia]=useState(null);
         const [openMediaMenu,setOpenMediaMenu]=useState(null); // key string for 3-dots menu
         const dmFileInputRef=useRef(null);
+        const dmCameraInputRef=useRef(null);
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
@@ -443,7 +444,7 @@
         }
 
         async function sendMessage(recipientId, mediaUrl=null){
-          if(!session)return;
+          if(!session||!recipientId)return;
           const hasText = messageText.trim().length>0;
           if(!hasText && !mediaUrl){return;}
           const payload={
@@ -453,10 +454,9 @@
             media_url:mediaUrl
           };
           const { error } = await supabase.from('messages').insert(payload);
-          if(!error){
-            setMessageText('');
-            await loadMessages(recipientId);
-          }
+          if(error){console.error('Send message error',error);safeAlert('Could not send message');return;}
+          setMessageText('');
+          await loadMessages(recipientId);
         }
 
         async function handleDmFileSelect(e){
@@ -1026,10 +1026,12 @@
                   ),
                   getLastOutgoingReadAt()?React.createElement('div',{className:'meta',style:{textAlign:'right',marginTop:4}},`Last read ${formatDate(getLastOutgoingReadAt())}`):null,
                   React.createElement('div',{className:'row',style:{marginTop:8,gap:6,alignItems:'center',flexWrap:'wrap'}},
+                    React.createElement('input',{type:'file',accept:'video/*',capture:'environment',ref:dmCameraInputRef,onChange:handleDmFileSelect,style:{display:'none'}}),
                     React.createElement('input',{type:'file',accept:'image/*,video/*',ref:dmFileInputRef,onChange:handleDmFileSelect,style:{display:'none'}}),
-                    React.createElement('input',{className:'input',value:messageText,onChange:e=>setMessageText(e.target.value),placeholder:'Message...',style:{flex:1,minWidth:0}}),
-                    React.createElement('button',{className:'btn',onClick:()=>dmFileInputRef.current&&dmFileInputRef.current.click(),disabled:dmUploading},dmUploading?'Uploading...':'Attach'),
-                    React.createElement('button',{className:'btn primary',onClick:()=>sendMessage(selectedMessenger),disabled:dmUploading},dmUploading?'Wait':'Send')
+                    React.createElement('input',{className:'input',value:messageText,onChange:e=>setMessageText(e.target.value),placeholder:'Message...',onKeyDown:e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage(selectedMessenger)}},style:{flex:1,minWidth:0}}),
+                    React.createElement('button',{className:'btn',onClick:()=>dmCameraInputRef.current&&dmCameraInputRef.current.click(),disabled:dmUploading},'📹'),
+                    React.createElement('button',{className:'btn',onClick:()=>dmFileInputRef.current&&dmFileInputRef.current.click(),disabled:dmUploading},'📎'),
+                    React.createElement('button',{className:'btn primary',onClick:()=>sendMessage(selectedMessenger),disabled:dmUploading||(!messageText.trim())},dmUploading?'⏳':'Send')
                   )
                 ):React.createElement('div',{className:'meta'},'Select a conversation')
               )
