@@ -179,6 +179,7 @@
         const [searchResult,setSearchResult]=useState(null);
         const [myFollowers,setMyFollowers]=useState([]);
           const [blockedUsers,setBlockedUsers]=useState([]);
+          const [bannedUsersGlobal,setBannedUsersGlobal]=useState([]);
         const [logoUrl,setLogoUrl]=useState('cz-logo.png');
         const [uploadingLogo,setUploadingLogo]=useState(false);
         const [currentView,setCurrentView]=useState('feed');
@@ -207,9 +208,9 @@
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
             setSession(data.session||null);setLoading(false);
-            if(data.session){loadProfile(data.session.user);loadBlockedUsers();loadFeed();loadLogo()}
+            if(data.session){loadProfile(data.session.user);loadBlockedUsers();loadBannedUsers();loadFeed();loadLogo()}
           }).catch(err=>{console.error('Session error:',err);setLoading(false)});
-          const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadBlockedUsers();loadFeed();loadLogo()}else{setProfile(null);setFeed([])}})
+          const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadBlockedUsers();loadBannedUsers();loadFeed();loadLogo()}else{setProfile(null);setFeed([])}})
           return ()=>listener.subscription.unsubscribe();
         },[])
 
@@ -308,6 +309,24 @@
 
         function toggle(setter,arr,label){setter(prev=>prev.includes(label)?prev.filter(x=>x!==label):prev.concat(label))}
 
+        async function ensureInTheirCircle(targetUserId){
+          if(!session||!targetUserId)return false;
+          if(targetUserId===session.user.id)return true;
+          if(bannedUsersGlobal.includes(targetUserId)){safeAlert('User is banned');return false;}
+          const { data, error } = await supabase
+            .from('relationships')
+            .select('circle')
+            .eq('owner_id',targetUserId)
+            .eq('member_id',session.user.id)
+            .maybeSingle();
+          if(error){console.error('Circle check error',error);safeAlert('Could not verify circle');return false;}
+          if(!data||!data.circle){safeAlert('You need to be in their circle to CM');return false;}
+          if(data.circle==='BLOCKED'){safeAlert('You are blocked by this user');return false;}
+          return true;
+        }
+
+        function containsHateSpeech(text){
+
         function containsHateSpeech(text){
           if(!text)return false;
           const lowerText=text.toLowerCase();
@@ -331,6 +350,38 @@
           if(!session)return;
           const{data}=await supabase.from('relationships').select('member_id').eq('owner_id',session.user.id).eq('circle','BLOCKED');
           setBlockedUsers((data||[]).map(r=>r.member_id));
+        }
+
+        async function loadBannedUsers(){
+          try{
+            const { data, error } = await supabase.from('profiles').select('id').eq('banned',true);
+            if(error){console.warn('Banned load error',error);setBannedUsersGlobal([]);return;}
+            setBannedUsersGlobal((data||[]).map(r=>r.id));
+          }catch(e){console.error('Banned load exception',e);setBannedUsersGlobal([]);}
+        }
+
+        async function banUser(userId){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          try{
+            const { error } = await supabase.from('profiles').update({banned:true}).eq('id',userId);
+            if(error){safeAlert('Failed to ban user');console.error('Ban error',error);return;}
+            safeAlert('User banned globally');
+            setSearchResult(prev=>prev&&prev.id===userId?{...prev,banned:true}:prev);
+            await loadBannedUsers();
+            await loadFeed();
+          }catch(e){console.error('Ban exception',e);safeAlert('Could not ban user');}
+        }
+
+        async function unbanUser(userId){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          try{
+            const { error } = await supabase.from('profiles').update({banned:false}).eq('id',userId);
+            if(error){safeAlert('Failed to unban user');console.error('Unban error',error);return;}
+            safeAlert('User unbanned');
+            setSearchResult(prev=>prev&&prev.id===userId?{...prev,banned:false}:prev);
+            await loadBannedUsers();
+            await loadFeed();
+          }catch(e){console.error('Unban exception',e);safeAlert('Could not unban user');}
         }
 
         async function loadFeed(){
@@ -371,11 +422,12 @@
           (myRelationships||[]).forEach(r => circleMap[r.owner_id] = r.circle);
           console.log('🔗 Circle assignments:',circleMap);
           
-          // Filter posts based on circle visibility
+          // Filter posts based on circle visibility plus blocks/bans
           const visiblePosts = allPosts.filter(p => {
             if(p.author_id === currentUserId) return true; // Always see your own posts
-                        if(blockedUsers.includes(p.author_id)) return false; // Hide blocked users
-                        if(containsHateSpeech(p.content)) return false; // Block hate speech
+            if(blockedUsers.includes(p.author_id)) return false; // Hide blocked users (personal)
+            if(bannedUsersGlobal.includes(p.author_id)) return false; // Hide globally banned users
+            if(containsHateSpeech(p.content)) return false; // Block hate speech
             const assignedCircle = circleMap[p.author_id];
             if(!assignedCircle) return true; // No relationship = public view (show all for now)
             const postCircles = p.circlez || [];
@@ -397,7 +449,7 @@
               .order('display_name',{ascending:true})
               .limit(500);
             if(error){console.error('Stories load error',error);setStoriesMembers([]);return}
-            setStoriesMembers((data||[]).map(p=>({id:p.id,handle:p.handle||'@member',display_name:p.display_name||null,photo:p.profile_photo_||null})));
+            setStoriesMembers((data||[]).filter(p=>!bannedUsersGlobal.includes(p.id)).map(p=>({id:p.id,handle:p.handle||'@member',display_name:p.display_name||null,photo:p.profile_photo_||null})));
             return;
           }
           const { data, error } = await supabase
@@ -411,7 +463,7 @@
           const { data: profs, error: pErr } = await supabase.from('profiles').select('id,handle,display_name,profile_photo_').in('id',ids);
           if(pErr){console.error('Stories profile load error',pErr);setStoriesMembers([]);return}
           const map={};(profs||[]).forEach(p=>map[p.id]=p);
-          setStoriesMembers(ids.map(id=>({
+          setStoriesMembers(ids.filter(id=>!bannedUsersGlobal.includes(id)).map(id=>({
             id,
             handle:map[id]?.handle||'@member',
             display_name:map[id]?.display_name||null,
@@ -496,6 +548,8 @@
 
         async function sendMessage(recipientId, mediaUrl=null){
           if(!session||!recipientId){console.error('sendMessage: missing session or recipientId',{session:!!session,recipientId});return;}
+          const allowed=await ensureInTheirCircle(recipientId);
+          if(!allowed)return;
           const hasText = messageText.trim().length>0;
           if(!hasText && !mediaUrl){console.log('sendMessage: no text or media');return;}
           const payload={
@@ -576,11 +630,14 @@
             .limit(1)
             .maybeSingle();
           if(error){console.error('CM search error',error);return;}
+          if(data && bannedUsersGlobal.includes(data.id)){safeAlert('User is banned');setCmSearchResult(null);return;}
           setCmSearchResult(data||null);
         }
 
         async function startCmVideoCall(recipientId, isPrivate=false){
           if(!session||!recipientId)return;
+          const allowed=await ensureInTheirCircle(recipientId);
+          if(!allowed)return;
           try{
             const roomName=`cm-${session.user.id}-${recipientId}-${Date.now()}`;
             const roomUrl=`https://circlez.daily.co/${roomName}`;
@@ -688,7 +745,7 @@
           const q=searchEmail.trim();
           const { data, error } = await supabase
             .from('profiles')
-            .select('id,handle,display_name,certified')
+            .select('id,handle,display_name,certified,banned')
             .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
             .limit(1)
             .maybeSingle();
@@ -959,7 +1016,10 @@
               React.createElement('div',{style:{marginBottom:8}},searchResult.display_name||searchResult.handle),
               React.createElement('div',{className:'chips'},circleOptions.map(c=>React.createElement('button',{key:c,className:'chip',onClick:()=>assignCircle(searchResult.id,c)},c))),
               isAdmin(session?.user)?React.createElement('div',{style:{marginTop:10}},
-                React.createElement('button',{className:'btn primary',onClick:()=>toggleCertified(searchResult.id,searchResult.certified)},searchResult.certified?'Remove Certified':'Grant Certified')
+                React.createElement('div',{className:'row',style:{gap:6,flexWrap:'wrap'}},
+                  React.createElement('button',{className:'btn primary',onClick:()=>toggleCertified(searchResult.id,searchResult.certified)},searchResult.certified?'Remove Certified':'Grant Certified'),
+                  React.createElement('button',{className:'btn',style:{color:searchResult.banned?'#22c55e':'#ef4444'},onClick:()=>searchResult.banned?unbanUser(searchResult.id):banUser(searchResult.id)},searchResult.banned?'Unban user globally':'Ban user globally')
+                )
               ):null
             ):null,
             React.createElement('div',{style:{marginTop:10}},
