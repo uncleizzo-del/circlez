@@ -53,6 +53,7 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
   </head>
   <body>
     <div id="root"></div>
@@ -175,6 +176,8 @@
         const [conversations,setConversations]=useState([]);
         const [cmSearch,setCmSearch]=useState('');
         const [cmSearchResult,setCmSearchResult]=useState(null);
+        const [activeCmCall,setActiveCmCall]=useState(null);
+        const [dailyCallFrame,setDailyCallFrame]=useState(null);
         const [deletingMedia,setDeletingMedia]=useState(null);
         const [openMediaMenu,setOpenMediaMenu]=useState(null); // key string for 3-dots menu
         const dmFileInputRef=useRef(null);
@@ -528,6 +531,26 @@
           setCmSearchResult(data||null);
         }
 
+        async function startCmVideoCall(recipientId, isPrivate=false){
+          if(!session||!recipientId)return;
+          try{
+            const roomName=`cm-${session.user.id}-${recipientId}-${Date.now()}`;
+            const roomUrl=`https://circlez.daily.co/${roomName}`;
+            const callFrame=window.DailyIframe.createFrame({iframeStyle:{position:'fixed',top:0,left:0,width:'100%',height:'100%',zIndex:9999,background:'#000'}});
+            await callFrame.join({url:roomUrl});
+            setDailyCallFrame(callFrame);
+            setActiveCmCall({recipientId,isPrivate});
+            callFrame.on('left-meeting',()=>{callFrame.destroy();setDailyCallFrame(null);setActiveCmCall(null);});
+            const notif={sender_id:session.user.id,recipient_id:recipientId,content:`📹 ${isPrivate?'Private ':''}Video call: ${roomUrl}`,media_url:null};
+            await supabase.from('messages').insert(notif);
+          }catch(err){console.error('Start CM call error',err);safeAlert('Could not start video call');}
+        }
+
+        function endCmCall(){
+          if(dailyCallFrame){dailyCallFrame.destroy();setDailyCallFrame(null);}
+          setActiveCmCall(null);
+        }
+
         async function loadConversations(){
           if(!session)return;
           const uid=session.user.id;
@@ -831,6 +854,7 @@
             React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},
               React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),
               React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()}},'Media'),
+              !activeStream?React.createElement('button',{className:'btn primary glow',onClick:()=>{setCurrentView('live');loadLiveStreams()}},'🔴 Private CM'):null,
               React.createElement('button',{className:'btn',onClick:logout},'Log out')
             ),
             React.createElement('div',{style:{height:8}}),
@@ -927,7 +951,7 @@
             React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0||composeMedia.length>0?' glow':''),onClick:post,disabled:composingMedia},composingMedia?'Posting...':'Post to Circlez'))
           ),
 
-          React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},currentView==='media'?'Your Media':currentView==='cm'?'CM — Circled Message':'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:()=>setCurrentView('feed')},'Feed'),React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()},style:{marginLeft:4}},'Media'),React.createElement('button',{className:'btn'+(currentView==='cm'?' primary':''),onClick:()=>{setCurrentView('cm');loadConversations()},style:{marginLeft:4}},'CM'))),
+          React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},currentView==='media'?'Your Media':currentView==='cm'?'CM — Circled Message':currentView==='live'?'🔴 Private CM':'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:()=>setCurrentView('feed')},'Feed'),React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()},style:{marginLeft:4}},'Media'),React.createElement('button',{className:'btn'+(currentView==='cm'?' primary':''),onClick:()=>{setCurrentView('cm');loadConversations()},style:{marginLeft:4}},'CM'),React.createElement('button',{className:'btn'+(currentView==='live'?' primary':''),onClick:()=>{setCurrentView('live');loadLiveStreams()},style:{marginLeft:4}},'🔴 Private CM'))),
             React.createElement('div',{style:{height:8}}),
             currentView==='feed'?
             feed.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
@@ -1009,7 +1033,17 @@
               ),
               React.createElement('div',{style:{flex:1}},
                 selectedMessenger?React.createElement('div',null,
-                  React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Chat'),
+                  React.createElement('div',{className:'row',style:{marginBottom:8,alignItems:'center',gap:6}},
+                    React.createElement('div',{className:'panel-title'},'Chat'),
+                    React.createElement('div',{style:{marginLeft:'auto',display:'flex',gap:4}},
+                      React.createElement('button',{className:'btn',onClick:()=>startCmVideoCall(selectedMessenger,false),disabled:!!activeCmCall},'📹 Live CM'),
+                      React.createElement('button',{className:'btn primary',onClick:()=>startCmVideoCall(selectedMessenger,true),disabled:!!activeCmCall},'🔒 Private CM')
+                    )
+                  ),
+                  activeCmCall&&activeCmCall.recipientId===selectedMessenger?React.createElement('div',{style:{marginBottom:8,padding:8,background:'rgba(239,68,68,0.1)',borderRadius:8,border:'1px solid rgba(239,68,68,0.3)'}},
+                    React.createElement('div',{style:{fontWeight:700,color:'#ef4444'}},'📹 Live call in progress'),
+                    React.createElement('button',{className:'btn',onClick:endCmCall,style:{marginTop:6}},'End Call')
+                  ):null,
                   React.createElement('div',{style:{maxHeight:260,overflowY:'auto',padding:8,border:'1px solid rgba(148,163,184,0.15)',borderRadius:8}},
                     messages.map(m=>{
                       const mine=m.sender_id===session.user.id;
