@@ -329,18 +329,33 @@
           // Upload media files
           for(const mediaItem of composeMedia){
             try{
-              const path=`${user.id}/posts/${Date.now()}_${Math.random().toString(36).slice(2)}`;
-              const { error } = await supabase.storage.from('media').upload(path,mediaItem.file);
-              if(error){console.error('Media upload error:',error);continue}
-              const url=supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
-              mediaUrls.push(url);
-            }catch(err){console.error('Upload error:',err)}
+              const timestamp=Date.now();
+              const random=Math.random().toString(36).slice(2);
+              const ext=mediaItem.type==='video'?'.mp4':'.jpg';
+              const filename=`${user.id}_${timestamp}_${random}${ext}`;
+              const path=`posts/${filename}`;
+              console.log('🚀 Uploading media:',{path,size:mediaItem.file.size,type:mediaItem.type});
+              const { data, error } = await supabase.storage.from('media').upload(path,mediaItem.file,{upsert:false});
+              if(error){console.error('❌ Media upload error:',error);safeAlert('Failed to upload media: '+error.message);continue}
+              console.log('✅ Media uploaded:',data);
+              const urlObj=supabase.storage.from('media').getPublicUrl(path);
+              const url=urlObj.data?.publicUrl;
+              if(url){
+                console.log('🔗 Media URL:',url);
+                mediaUrls.push(url);
+              }else{
+                console.error('❌ Failed to get public URL');
+              }
+            }catch(err){console.error('❌ Upload error:',err);safeAlert('Error uploading media')}
           }
           
           const payload={content:content.trim(),author_id:user.id,author_handle:(profile?.handle||getHandleForUser(user)),circlez:selectedCircles,mood:selectedMoods,media_urls:mediaUrls.length>0?mediaUrls:null};
+          console.log('📝 Posting with payload:',payload);
           const { error } = await supabase.from('posts').insert(payload);
-          if(error){console.error('Post error',error);safeAlert('Could not post');setComposingMedia(false);return}
+          if(error){console.error('❌ Post error',error);safeAlert('Could not post: '+error.message);setComposingMedia(false);return}
+          console.log('✅ Post created successfully');
           setContent('');setSelectedMoods([]);setComposeMedia([]);setComposingMedia(false);await loadFeed();
+          safeAlert('Posted!');
         }
 
         function handleComposeMediaSelect(e){
