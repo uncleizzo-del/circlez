@@ -87,6 +87,7 @@
         return pub?.publicUrl||null;
       }
       function getHandleForUser(user){const email=(user?.email||"").toLowerCase();if(email==="uncleizzo@gmail.com")return"@uncleophilly";const base=email?email.split('@')[0]:'member';return'@'+base.toLowerCase()}
+      function isAdmin(user){const email=(user?.email||"").toLowerCase();return email==="uncleizzo@gmail.com"}
       function formatDate(iso){if(!iso)return'';return new Date(iso).toLocaleString()}
 
       function CertifiedBadge({size=20}){
@@ -322,9 +323,9 @@
 
         async function searchUser(){
           if(!searchEmail.trim())return;
-          const { data, error } = await supabase.from('profiles').select('id,handle,display_name').eq('id',(await supabase.auth.admin.getUserByEmail?.(searchEmail))?.data?.user?.id||'').maybeSingle();
+          const { data, error } = await supabase.from('profiles').select('id,handle,display_name,certified').eq('id',(await supabase.auth.admin.getUserByEmail?.(searchEmail))?.data?.user?.id||'').maybeSingle();
           if(error||!data){
-            const { data: byHandle } = await supabase.from('profiles').select('id,handle,display_name').ilike('handle','%'+searchEmail+'%').limit(1).maybeSingle();
+            const { data: byHandle } = await supabase.from('profiles').select('id,handle,display_name,certified').ilike('handle','%'+searchEmail+'%').limit(1).maybeSingle();
             setSearchResult(byHandle);
           } else setSearchResult(data);
         }
@@ -335,6 +336,14 @@
           const { error } = await supabase.from('relationships').upsert(payload,{onConflict:'owner_id,member_id'});
           if(error){console.error('Assign error',error);safeAlert('Could not assign circle')}
           else{safeAlert('Circle assigned!');loadMyFollowers()}
+        }
+
+        async function toggleCertified(userId,currentStatus){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          const newStatus = !currentStatus;
+          const { error } = await supabase.from('profiles').update({certified:newStatus}).eq('id',userId);
+          if(error){console.error('Certify error',error);safeAlert('Failed to update certified status')}
+          else{safeAlert(newStatus?'User certified!':'Certification removed');await searchUser()}
         }
 
         async function loadMyFollowers(){
@@ -451,14 +460,17 @@
           ),
 
           React.createElement('div',{className:'panel'},
-            React.createElement('div',{style:{fontWeight:700,marginBottom:10}},'Circle Me'),
+            React.createElement('div',{style:{fontWeight:700,marginBottom:10}},isAdmin(session?.user)?'Circle Me & Admin':'Circle Me'),
             React.createElement('div',{className:'row'},
               React.createElement('input',{className:'input',style:{flex:1},value:searchEmail,onChange:e=>setSearchEmail(e.target.value),placeholder:'Search by email or handle'}),
               React.createElement('button',{className:'btn',onClick:searchUser},'Search')
             ),
             searchResult?React.createElement('div',{style:{marginTop:10}},
               React.createElement('div',{style:{marginBottom:8}},searchResult.display_name||searchResult.handle),
-              React.createElement('div',{className:'chips'},circleOptions.map(c=>React.createElement('button',{key:c,className:'chip',onClick:()=>assignCircle(searchResult.id,c)},c)))
+              React.createElement('div',{className:'chips'},circleOptions.map(c=>React.createElement('button',{key:c,className:'chip',onClick:()=>assignCircle(searchResult.id,c)},c))),
+              isAdmin(session?.user)?React.createElement('div',{style:{marginTop:10}},
+                React.createElement('button',{className:'btn primary',onClick:()=>toggleCertified(searchResult.id,searchResult.certified)},searchResult.certified?'Remove Certified':'Grant Certified')
+              ):null
             ):null,
             React.createElement('div',{style:{marginTop:10}},
               React.createElement('button',{className:'btn',onClick:loadMyFollowers},'Show My Circlez'),
