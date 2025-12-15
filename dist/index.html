@@ -267,7 +267,7 @@
           const currentUserId = session.user.id;
           
           // Load all posts with author profile info
-          let res = await supabase.from('posts').select('id,content,created_at,author_id,author_handle,circlez,mood,profiles!posts_author_id_fkey(certified)').order('created_at',{ascending:false}).limit(50);
+          let res = await supabase.from('posts').select('id,content,created_at,author_id,author_handle,circlez,mood,media_urls,profiles!posts_author_id_fkey(certified)').order('created_at',{ascending:false}).limit(50);
           if(res.error){console.error('Feed error:',res.error);setLoadingFeed(false);return}
           const allPosts = res.data||[];
           
@@ -285,7 +285,7 @@
             return postCircles.includes(assignedCircle); // Only show if assigned circle matches post's circles
           });
           
-          setFeed(visiblePosts.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,circlez:p.circlez||[],mood:p.mood||[],author_id:p.author_id,author_handle:p.author_handle||'',certified:p.profiles?.certified||false})))
+          setFeed(visiblePosts.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,circlez:p.circlez||[],mood:p.mood||[],author_id:p.author_id,author_handle:p.author_handle||'',certified:p.profiles?.certified||false,media_urls:p.media_urls||[]})))
           setLoadingFeed(false)
         }
 
@@ -634,7 +634,7 @@
             React.createElement('div',{style:{height:8}}),
             currentView==='feed'?
             feed.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
-            React.createElement('div',null,feed.map(p=>React.createElement('div',{key:p.id,className:'post'},React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6}},p.author_handle||'@member',p.certified?React.createElement(CertifiedBadge,{size:16}):null),React.createElement('div',{className:'meta'},formatDate(p.created_at)),React.createElement('div',{style:{marginTop:8}},p.content),React.createElement('div',{className:'tags'},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m))))))
+            React.createElement('div',null,feed.map(p=>React.createElement('div',{key:p.id,className:'post'},React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6}},p.author_handle||'@member',p.certified?React.createElement(CertifiedBadge,{size:16}):null),React.createElement('div',{className:'meta'},formatDate(p.created_at)),React.createElement('div',{style:{marginTop:8}},p.content),p.media_urls&&p.media_urls.length>0?React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))',gap:6,marginTop:8}},p.media_urls.map((url,idx)=>React.createElement('div',{key:idx,style:{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)'}},url.includes('.mp4')||url.includes('video')?React.createElement('video',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},controls:false}):React.createElement('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'}})))):null,React.createElement('div',{className:'tags'},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m))))))
             :
             mediaGallery.length===0?React.createElement('div',{className:'meta'},'No photos or videos yet.'):
             React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:8}},
