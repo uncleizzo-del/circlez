@@ -188,7 +188,7 @@
           setMyFollowers(data||[]);
         }
 
-        async function logout(){await supabase.auth.signOut();}
+        async function logout(){try{await supabase.auth.signOut();setSession(null);setProfile(null);setFeed([]);window.location.reload()}catch(err){console.error('Logout error:',err);safeAlert('Could not log out')}}
 
         if(loading)return React.createElement('div',{className:'panel'},'Loading...');
         if(!session)return React.createElement(LoginScreen,null)
