@@ -152,6 +152,7 @@
         const [storyOpen,setStoryOpen]=useState(null);
         const [storyPosts,setStoryPosts]=useState([]);
         const [storyIndex,setStoryIndex]=useState(0);
+        const [adminOpen,setAdminOpen]=useState(false);
         
         const [searchEmail,setSearchEmail]=useState('');
         const [searchResult,setSearchResult]=useState(null);
@@ -368,7 +369,7 @@
           setStoryOpen(member);setStoryIndex(0);setStoryPosts([]);
           const { data, error } = await supabase
             .from('posts')
-            .select('id,content,created_at')
+            .select('id,content,created_at,media_urls')
             .eq('author_id',member.id)
             .order('created_at',{ascending:false})
             .limit(10);
@@ -378,6 +379,14 @@
         function closeStory(){setStoryOpen(null);setStoryPosts([]);setStoryIndex(0)}
         function nextStory(){setStoryIndex(i=>Math.min(i+1,Math.max(0,storyPosts.length-1)))}
         function prevStory(){setStoryIndex(i=>Math.max(i-1,0))}
+        function replyToStory(){
+          if(!session||!storyOpen)return;
+          setCurrentView('cm');
+          setSelectedMessenger(storyOpen.id);
+          loadMessages(storyOpen.id);
+          setMessageText('');
+          closeStory();
+        }
 
         async function loadPostComments(postId){
           const { data, error } = await supabase
@@ -755,10 +764,7 @@
             React.createElement('div',{className:'stories'},
               storiesMembers.length===0?React.createElement('div',{className:'meta'},'No people in this circle yet.'):
               storiesMembers.map(m=>React.createElement('div',{key:m.id,className:'story'},
-                React.createElement('div',{className:'story-ring'},
-                  m.photo?React.createElement('img',{src:m.photo,className:'story-ava',onClick:()=>openStory(m)}):
-                  React.createElement('div',{className:'story-ava',onClick:()=>openStory(m)},(m.handle||'@u')[1]?.toUpperCase()||'U')
-                ),
+                React.createElement('div',{className:'story-ring',style:{boxShadow:'0 0 14px rgba(34,197,94,0.6)'}},
                 React.createElement('div',{style:{fontSize:12,opacity:0.9,maxWidth:70,textAlign:'center'}},(m.display_name||m.handle).replace('@',''))
               ))
             )
@@ -766,18 +772,28 @@
 
           storyOpen?React.createElement('div',{className:'overlay',onClick:closeStory},
             React.createElement('div',{className:'overlay-card',onClick:e=>e.stopPropagation()},
-              React.createElement('div',{className:'row',style:{marginBottom:8}},
+              React.createElement('div',{className:'row',style:{marginBottom:8,alignItems:'center',gap:6}},
                 React.createElement('div',{style:{fontWeight:700}},storyOpen.display_name||storyOpen.handle),
-                React.createElement('div',{style:{marginLeft:'auto'}},
+                React.createElement('div',{style:{marginLeft:'auto',display:'flex',gap:6,flexWrap:'wrap'}},
                   React.createElement('button',{className:'btn',onClick:prevStory},'Prev'),
-                  React.createElement('button',{className:'btn',onClick:nextStory,style:{marginLeft:6}},'Next'),
-                  React.createElement('button',{className:'btn',onClick:closeStory,style:{marginLeft:6}},'Close')
+                  React.createElement('button',{className:'btn',onClick:nextStory},'Next'),
+                  React.createElement('button',{className:'btn primary',onClick:replyToStory},'Reply'),
+                  React.createElement('button',{className:'btn',onClick:closeStory},'Close')
                 )
               ),
               storyPosts.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
               React.createElement('div',null,
                 React.createElement('div',{className:'meta'},new Date(storyPosts[storyIndex]?.created_at||Date.now()).toLocaleString()),
-                React.createElement('div',{style:{marginTop:10,fontSize:18,lineHeight:1.4}},storyPosts[storyIndex]?.content||'')
+                React.createElement('div',{style:{marginTop:10,fontSize:18,lineHeight:1.4}},storyPosts[storyIndex]?.content||''),
+                Array.isArray(storyPosts[storyIndex]?.media_urls)&&storyPosts[storyIndex].media_urls.length>0?
+                  React.createElement('div',{style:{marginTop:10,display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:10}},
+                    storyPosts[storyIndex].media_urls.map((url,idx)=>React.createElement('div',{key:url+idx,style:{padding:6,borderRadius:10,background:'rgba(34,197,94,0.12)',border:'1px solid rgba(34,197,94,0.5)',boxShadow:'0 0 18px rgba(34,197,94,0.35)'}},
+                      url.includes('.mp4')||url.includes('video')?
+                        React.createElement('video',{src:url,style:{width:'100%',borderRadius:6},controls:true}):
+                        React.createElement('img',{src:url,style:{width:'100%',borderRadius:6,display:'block'}})
+                    ))
+                  )
+                :null
               )
             )
           ):null,
@@ -828,11 +844,16 @@
           React.createElement('div',{className:'panel'},
             React.createElement('div',{style:{fontWeight:700,marginBottom:10}},isAdmin(session?.user)?'Circle Me & Admin':'Circle Me'),
             
-            isAdmin(session?.user)?React.createElement('div',{style:{marginBottom:12,paddingBottom:12,borderBottom:'1px solid rgba(148,163,184,0.08)'}},
-              React.createElement('div',{style:{fontWeight:700,marginBottom:8,fontSize:14,color:'#22c55e'}},'⚙ ADMIN CONTROLS'),
-              React.createElement('div',{style:{fontWeight:600,marginBottom:6,fontSize:12}},'Change Logo'),
-              React.createElement('input',{id:'logoInput',type:'file',accept:'image/*',onChange:handleLogoUpload,style:{display:'none'}}),
-              React.createElement('label',{htmlFor:'logoInput',className:'btn',style:{cursor:'pointer',display:'block',textAlign:'center'}},uploadingLogo?'Uploading...':'📤 Upload New Logo')
+            isAdmin(session?.user)?React.createElement('div',{style:{marginBottom:12}},
+              React.createElement('button',{className:'btn',style:{width:'100%',justifyContent:'space-between',display:'flex',alignItems:'center'},onClick:()=>setAdminOpen(o=>!o)},
+                React.createElement('span',null,'⚙ Admin controls'),
+                React.createElement('span',{style:{opacity:0.8}},adminOpen?'▲':'▼')
+              ),
+              adminOpen?React.createElement('div',{style:{marginTop:8,padding:10,border:'1px solid rgba(148,163,184,0.1)',borderRadius:8,background:'rgba(34,197,94,0.05)'}},
+                React.createElement('div',{style:{fontWeight:600,marginBottom:6,fontSize:12}},'Change Logo'),
+                React.createElement('input',{id:'logoInput',type:'file',accept:'image/*',onChange:handleLogoUpload,style:{display:'none'}}),
+                React.createElement('label',{htmlFor:'logoInput',className:'btn',style:{cursor:'pointer',display:'block',textAlign:'center'}},uploadingLogo?'Uploading...':'📤 Upload New Logo')
+              ):null
             ):null,
 
             React.createElement('div',{className:'row'},
