@@ -161,7 +161,10 @@
               }else{
                 // Optimistically update local state so the header avatar updates immediately
                 setProfile(prev=>prev?{...prev,profile_photo_:url}:prev);
-                await loadProfile(session.user);
+                // Small delay then fetch the fresh row to avoid any race with caches
+                await new Promise(r=>setTimeout(r,150));
+                const { data: fresh, error: selErr } = await supabase.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+                if(!selErr && fresh){ setProfile(fresh); }
                 safeAlert('Photo saved!')
               }
             }
