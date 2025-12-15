@@ -352,7 +352,16 @@
         async function loadBannedUsers(){
           try{
             const { data, error } = await supabase.from('profiles').select('id').eq('banned',true);
-            if(error){console.warn('Banned load error',error);setBannedUsersGlobal([]);return;}
+            if(error){
+              // Missing column or other issue; keep app running
+              if((error.message||'').toLowerCase().includes('banned')){
+                console.warn('Banned column missing; skipping banned load');
+              }else{
+                console.warn('Banned load error',error);
+              }
+              setBannedUsersGlobal([]);
+              return;
+            }
             setBannedUsersGlobal((data||[]).map(r=>r.id));
           }catch(e){console.error('Banned load exception',e);setBannedUsersGlobal([]);}
         }
@@ -361,7 +370,15 @@
           if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
           try{
             const { error } = await supabase.from('profiles').update({banned:true}).eq('id',userId);
-            if(error){safeAlert('Failed to ban user');console.error('Ban error',error);return;}
+            if(error){
+              if((error.message||'').toLowerCase().includes('banned')){
+                safeAlert("'banned' column is missing in profiles. Add it with: ALTER TABLE profiles ADD COLUMN banned boolean DEFAULT false;");
+              }else{
+                safeAlert('Failed to ban user');
+              }
+              console.error('Ban error',error);
+              return;
+            }
             safeAlert('User banned globally');
             setSearchResult(prev=>prev&&prev.id===userId?{...prev,banned:true}:prev);
             await loadBannedUsers();
@@ -373,7 +390,15 @@
           if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
           try{
             const { error } = await supabase.from('profiles').update({banned:false}).eq('id',userId);
-            if(error){safeAlert('Failed to unban user');console.error('Unban error',error);return;}
+            if(error){
+              if((error.message||'').toLowerCase().includes('banned')){
+                safeAlert("'banned' column is missing in profiles. Add it with: ALTER TABLE profiles ADD COLUMN banned boolean DEFAULT false;");
+              }else{
+                safeAlert('Failed to unban user');
+              }
+              console.error('Unban error',error);
+              return;
+            }
             safeAlert('User unbanned');
             setSearchResult(prev=>prev&&prev.id===userId?{...prev,banned:false}:prev);
             await loadBannedUsers();
@@ -747,7 +772,7 @@
           const q=searchEmail.trim();
           const { data, error } = await supabase
             .from('profiles')
-            .select('id,handle,display_name,certified,banned')
+            .select('id,handle,display_name,certified')
             .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
             .limit(5);
           if(error){
