@@ -349,12 +349,13 @@
         }
 
         async function loadLogo(){
-          if(!session)return;
-          const baseUrl = 'https://ddlcukufdiytyfhpynzo.supabase.co/storage/v1/object/public/media/admin/cz-logo.png';
-          const { data } = await supabase.storage.from('media').list('admin',{limit:1});
-          if(data&&data.length>0){
-            setLogoUrl(baseUrl+'?t='+Date.now());
-          }
+          try{
+            const { data, error } = await supabase.storage.from('media').list('admin');
+            if(error||!data||data.length===0){console.log('No logo file');return}
+            const url = supabase.storage.from('media').getPublicUrl('admin/cz-logo.png').data.publicUrl+'?t='+Date.now();
+            console.log('Logo URL:',url);
+            setLogoUrl(url);
+          }catch(err){console.error('Logo load error:',err)}
         }
 
         async function handleLogoUpload(e){
