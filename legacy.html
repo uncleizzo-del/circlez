@@ -444,17 +444,23 @@
         }
 
         async function sendMessage(recipientId, mediaUrl=null){
-          if(!session||!recipientId)return;
+          if(!session||!recipientId){console.error('sendMessage: missing session or recipientId',{session:!!session,recipientId});return;}
           const hasText = messageText.trim().length>0;
-          if(!hasText && !mediaUrl){return;}
+          if(!hasText && !mediaUrl){console.log('sendMessage: no text or media');return;}
           const payload={
             sender_id:session.user.id,
             recipient_id:recipientId,
             content:hasText?messageText.trim():null,
             media_url:mediaUrl
           };
-          const { error } = await supabase.from('messages').insert(payload);
-          if(error){console.error('Send message error',error);safeAlert('Could not send message');return;}
+          console.log('Sending message:',payload);
+          const { data, error } = await supabase.from('messages').insert(payload).select();
+          if(error){
+            console.error('Send message error:',error);
+            safeAlert('Could not send: '+error.message);
+            return;
+          }
+          console.log('Message sent:',data);
           setMessageText('');
           await loadMessages(recipientId);
         }
