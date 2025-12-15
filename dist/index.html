@@ -156,6 +156,8 @@
         const [myFollowers,setMyFollowers]=useState([]);
         const [logoUrl,setLogoUrl]=useState('cz-logo.png');
         const [uploadingLogo,setUploadingLogo]=useState(false);
+        const [currentView,setCurrentView]=useState('feed');
+        const [mediaGallery,setMediaGallery]=useState([]);
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
@@ -383,6 +385,28 @@
           setMyFollowers(data||[]);
         }
 
+        async function loadMediaGallery(){
+          if(!session)return;
+          const { data, error } = await supabase
+            .from('posts')
+            .select('id,content,created_at,media_urls')
+            .eq('author_id',session.user.id)
+            .order('created_at',{ascending:false})
+            .limit(100);
+          if(error){console.error('Load media gallery',error);return}
+          const items = [];
+          (data||[]).forEach(post=>{
+            if(post.media_urls && Array.isArray(post.media_urls)){
+              post.media_urls.forEach(url=>{
+                if(url){
+                  items.push({id:post.id,url:url,content:post.content,created_at:post.created_at,type:url.includes('.mp4')||url.includes('.webm')||url.includes('video')?'video':'image'});
+                }
+              });
+            }
+          });
+          setMediaGallery(items);
+        }
+
         async function logout(){
           try{await supabase.auth.signOut({ scope:'global' });}
           catch(e){console.error('Sign out error:',e)}
@@ -456,7 +480,11 @@
                 React.createElement('div',{style:{width:50,height:50,borderRadius:999,background:'rgba(34,197,94,0.15)',border:'2px solid rgba(34,197,94,0.5)',marginRight:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'rgba(34,197,94,0.9)'}},handle?handle[1].toUpperCase():'?'),
               React.createElement('div',{style:{flex:1,minWidth:0}},React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6}} , handle,profile?.certified?React.createElement(CertifiedBadge,{size:20}):null))
             ),
-            React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),React.createElement('button',{className:'btn',onClick:logout},'Log out')),
+            React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},
+              React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),
+              React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()}},'Media'),
+              React.createElement('button',{className:'btn',onClick:logout},'Log out')
+            ),
             React.createElement('div',{style:{height:8}}),
             profile?.avatar_url?React.createElement('div',{style:{marginBottom:8}},React.createElement('video',{src:profile.avatar_url,controls:true,style:{width:'100%',maxWidth:300,borderRadius:8,border:'2px solid rgba(34,197,94,0.5)'}})):null,
             !editingProfile?React.createElement('div',null,
@@ -530,10 +558,21 @@
             React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0?' glow':''),onClick:post},'Post to Circlez'))
           ),
 
-          React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:loadFeed},loadingFeed?'Refreshing...':'Refresh'))),
+          React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},currentView==='media'?'Your Media':'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:()=>setCurrentView('feed')},'Feed'),React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()},style:{marginLeft:4}},'Media'))),
             React.createElement('div',{style:{height:8}}),
+            currentView==='feed'?
             feed.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
             React.createElement('div',null,feed.map(p=>React.createElement('div',{key:p.id,className:'post'},React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6}},p.author_handle||'@member',p.certified?React.createElement(CertifiedBadge,{size:16}):null),React.createElement('div',{className:'meta'},formatDate(p.created_at)),React.createElement('div',{style:{marginTop:8}},p.content),React.createElement('div',{className:'tags'},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m))))))
+            :
+            mediaGallery.length===0?React.createElement('div',{className:'meta'},'No photos or videos yet.'):
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:8}},
+              mediaGallery.map(item=>React.createElement('div',{key:item.id,style:{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',cursor:'pointer',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)',position:'relative'}},
+                item.type==='video'?
+                React.createElement('video',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'},controls:false}):
+                React.createElement('img',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'}}),
+                React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.8)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:600}},item.type==='video'?'▶ VIDEO':'📷 PHOTO')
+              ))
+            )
           )
         )
       }
