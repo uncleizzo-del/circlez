@@ -265,16 +265,19 @@
           setLoadingFeed(true);
           if(!session){setLoadingFeed(false);return}
           const currentUserId = session.user.id;
+          console.log('📥 Loading feed for user:',currentUserId);
           
           // Load all posts with author profile info
           let res = await supabase.from('posts').select('id,content,created_at,author_id,author_handle,circlez,mood,media_urls,profiles!posts_author_id_fkey(certified)').order('created_at',{ascending:false}).limit(50);
-          if(res.error){console.error('Feed error:',res.error);setLoadingFeed(false);return}
+          if(res.error){console.error('❌ Feed error:',res.error);setLoadingFeed(false);return}
           const allPosts = res.data||[];
+          console.log('📊 All posts loaded:',allPosts.length,allPosts);
           
           // Load viewer's relationships (which circles others assigned me to)
           const { data: myRelationships } = await supabase.from('relationships').select('owner_id,circle').eq('member_id',currentUserId);
           const circleMap = {};
           (myRelationships||[]).forEach(r => circleMap[r.owner_id] = r.circle);
+          console.log('🔗 Circle assignments:',circleMap);
           
           // Filter posts based on circle visibility
           const visiblePosts = allPosts.filter(p => {
@@ -285,6 +288,7 @@
             return postCircles.includes(assignedCircle); // Only show if assigned circle matches post's circles
           });
           
+          console.log('✅ Visible posts:',visiblePosts.length,visiblePosts);
           setFeed(visiblePosts.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,circlez:p.circlez||[],mood:p.mood||[],author_id:p.author_id,author_handle:p.author_handle||'',certified:p.profiles?.certified||false,media_urls:p.media_urls||[]})))
           setLoadingFeed(false)
         }
@@ -354,7 +358,11 @@
           const { error } = await supabase.from('posts').insert(payload);
           if(error){console.error('❌ Post error',error);safeAlert('Could not post: '+error.message);setComposingMedia(false);return}
           console.log('✅ Post created successfully');
-          setContent('');setSelectedMoods([]);setComposeMedia([]);setComposingMedia(false);await loadFeed();
+          setContent('');setSelectedMoods([]);setComposeMedia([]);setComposingMedia(false);
+          console.log('⏳ Refreshing feed...');
+          await new Promise(r=>setTimeout(r,500));
+          await loadFeed();
+          console.log('✅ Feed refreshed');
           safeAlert('Posted!');
         }
 
