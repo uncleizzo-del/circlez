@@ -156,13 +156,15 @@
         const [searchEmail,setSearchEmail]=useState('');
         const [searchResult,setSearchResult]=useState(null);
         const [myFollowers,setMyFollowers]=useState([]);
+        const [logoUrl,setLogoUrl]=useState('cz-logo.png');
+        const [uploadingLogo,setUploadingLogo]=useState(false);
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
             setSession(data.session||null);setLoading(false);
-            if(data.session){loadProfile(data.session.user);loadFeed()}
+            if(data.session){loadProfile(data.session.user);loadFeed();loadLogo()}
           }).catch(err=>{console.error('Session error:',err);setLoading(false)});
-          const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadFeed()}else{setProfile(null);setFeed([])}})
+          const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadFeed();loadLogo()}else{setProfile(null);setFeed([])}})
           return ()=>listener.subscription.unsubscribe();
         },[])
 
@@ -346,6 +348,40 @@
           else{safeAlert(newStatus?'User certified!':'Certification removed');await searchUser()}
         }
 
+        async function loadLogo(){
+          const { data, error } = await supabase.storage.from('media').list('admin');
+          if(!error&&data){
+            const logoFile = data.find(f=>f.name.startsWith('logo'));
+            if(logoFile){
+              const { data: pub } = supabase.storage.from('media').getPublicUrl(`admin/${logoFile.name}`);
+              setLogoUrl(pub.publicUrl);
+            }
+          }
+        }
+
+        async function handleLogoUpload(e){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          if(!e.target.files||!e.target.files[0])return;
+          const file = e.target.files[0];
+          if(!file.type.startsWith('image/')){safeAlert('Please upload an image');return}
+          try{
+            setUploadingLogo(true);
+            const path = `admin/logo_${Date.now()}.png`;
+            const { error } = await supabase.storage.from('media').upload(path, file, {upsert:false});
+            if(error){console.error('Logo upload error:',error);safeAlert('Failed to upload logo')}
+            else{
+              const { data: pub } = supabase.storage.from('media').getPublicUrl(path);
+              setLogoUrl(pub.publicUrl);
+              safeAlert('Logo updated!');
+            }
+          }catch(err){
+            console.error('Logo error',err);
+            safeAlert('Could not upload logo');
+          }finally{
+            setUploadingLogo(false);
+          }
+        }
+
         async function loadMyFollowers(){
           if(!session)return;
           const { data } = await supabase.from('relationships').select('member_id,circle,profiles!relationships_member_id_fkey(handle,display_name)').eq('owner_id',session.user.id);
@@ -380,7 +416,7 @@
 
         return React.createElement('div',{className:'app font-'+fontStyle},
           React.createElement('div',{className:'brand'},
-            React.createElement('img',{src:'cz-logo.png',alt:'CIRCLEZ',className:'brand-logo',onError:e=>{e.target.style.display='none'}}),
+            React.createElement('img',{src:logoUrl,alt:'CIRCLEZ',className:'brand-logo',onError:e=>{e.target.style.display='none'}}),
             React.createElement('div',{className:'orb'+(content.length>0?' glow':'')},'CZ'),
             React.createElement('div',{className:'brand-title'},'CIRCLEZ')
           ),
@@ -465,6 +501,12 @@
               React.createElement('input',{className:'input',style:{flex:1},value:searchEmail,onChange:e=>setSearchEmail(e.target.value),placeholder:'Search by email or handle'}),
               React.createElement('button',{className:'btn',onClick:searchUser},'Search')
             ),
+            isAdmin(session?.user)?React.createElement('div',{style:{marginTop:12,paddingTop:12,borderTop:'1px solid rgba(148,163,184,0.08)'}},
+              React.createElement('div',{style:{fontWeight:700,marginBottom:8,fontSize:14}},'Admin: Change Logo'),
+              React.createElement('input',{id:'logoInput',type:'file',accept:'image/*',onChange:handleLogoUpload,style:{display:'none'}}),
+              React.createElement('label',{htmlFor:'logoInput',className:'btn',style:{cursor:'pointer'}},uploadingLogo?'Uploading...':'Upload New Logo'),
+              React.createElement('div',{style:{fontSize:12,opacity:0.6,marginTop:4}},logoUrl?'Current logo loaded':'Using default')
+            ):null,
             searchResult?React.createElement('div',{style:{marginTop:10}},
               React.createElement('div',{style:{marginBottom:8}},searchResult.display_name||searchResult.handle),
               React.createElement('div',{className:'chips'},circleOptions.map(c=>React.createElement('button',{key:c,className:'chip',onClick:()=>assignCircle(searchResult.id,c)},c))),
