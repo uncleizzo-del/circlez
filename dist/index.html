@@ -269,7 +269,23 @@
           setMyFollowers(data||[]);
         }
 
-        async function logout(){try{await supabase.auth.signOut({scope:'global'});setSession(null);setProfile(null);setFeed([]);window.location.href=window.location.origin+'/legacy.html'}catch(err){console.error('Logout error:',err);safeAlert('Could not log out')}}
+        async function logout(){
+          try{await supabase.auth.signOut({ scope:'global' });}
+          catch(e){console.error('Sign out error:',e)}
+          try{
+            setSession(null);setProfile(null);setFeed([]);
+            const target = window.location.origin + '/';
+            if(window.location.href !== target){
+              window.location.replace(target);
+            }else{
+              window.location.reload();
+            }
+          }catch(err){
+            console.error('Logout redirect error:',err);
+            // Last-resort hard nav to root (fixes broken /legacy.html links on prod)
+            window.location.href = '/';
+          }
+        }
 
         if(loading)return React.createElement('div',{className:'panel'},'Loading...');
         if(!session)return React.createElement(LoginScreen,null)
