@@ -76,6 +76,10 @@
         const [selectedMoods,setSelectedMoods]=useState([]);
         const [feed,setFeed]=useState([]);
         const [loadingFeed,setLoadingFeed]=useState(false);
+        
+        const [searchEmail,setSearchEmail]=useState('');
+        const [searchResult,setSearchResult]=useState(null);
+        const [myFollowers,setMyFollowers]=useState([]);
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
@@ -104,10 +108,29 @@
 
         async function loadFeed(){
           setLoadingFeed(true);
+          if(!session){setLoadingFeed(false);return}
+          const currentUserId = session.user.id;
+          
+          // Load all posts
           let res = await supabase.from('posts').select('id,content,created_at,author_id,author_handle,circlez,mood').order('created_at',{ascending:false}).limit(50);
           if(res.error){console.error('Feed error:',res.error);setLoadingFeed(false);return}
-          const rows = res.data||[];
-          setFeed(rows.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,circlez:p.circlez||[],mood:p.mood||[],author_id:p.author_id,author_handle:p.author_handle||''})))
+          const allPosts = res.data||[];
+          
+          // Load viewer's relationships (which circles others assigned me to)
+          const { data: myRelationships } = await supabase.from('relationships').select('owner_id,circle').eq('member_id',currentUserId);
+          const circleMap = {};
+          (myRelationships||[]).forEach(r => circleMap[r.owner_id] = r.circle);
+          
+          // Filter posts based on circle visibility
+          const visiblePosts = allPosts.filter(p => {
+            if(p.author_id === currentUserId) return true; // Always see your own posts
+            const assignedCircle = circleMap[p.author_id];
+            if(!assignedCircle) return true; // No relationship = public view (show all for now)
+            const postCircles = p.circlez || [];
+            return postCircles.includes(assignedCircle); // Only show if assigned circle matches post's circles
+          });
+          
+          setFeed(visiblePosts.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,circlez:p.circlez||[],mood:p.mood||[],author_id:p.author_id,author_handle:p.author_handle||''})))
           setLoadingFeed(false)
         }
 
@@ -116,6 +139,29 @@
           const { error } = await supabase.from('posts').insert(payload);
           if(error){console.error('Post error',error);safeAlert('Could not post');return}
           setContent('');setSelectedMoods([]);await loadFeed();
+        }
+
+        async function searchUser(){
+          if(!searchEmail.trim())return;
+          const { data, error } = await supabase.from('profiles').select('id,handle,display_name').eq('id',(await supabase.auth.admin.getUserByEmail?.(searchEmail))?.data?.user?.id||'').maybeSingle();
+          if(error||!data){
+            const { data: byHandle } = await supabase.from('profiles').select('id,handle,display_name').ilike('handle','%'+searchEmail+'%').limit(1).maybeSingle();
+            setSearchResult(byHandle);
+          } else setSearchResult(data);
+        }
+
+        async function assignCircle(memberId,circle){
+          if(!session)return;
+          const payload = {owner_id:session.user.id,member_id:memberId,circle:circle};
+          const { error } = await supabase.from('relationships').upsert(payload,{onConflict:'owner_id,member_id'});
+          if(error){console.error('Assign error',error);safeAlert('Could not assign circle')}
+          else{safeAlert('Circle assigned!');loadMyFollowers()}
+        }
+
+        async function loadMyFollowers(){
+          if(!session)return;
+          const { data } = await supabase.from('relationships').select('member_id,circle,profiles!relationships_member_id_fkey(handle,display_name)').eq('owner_id',session.user.id);
+          setMyFollowers(data||[]);
         }
 
         async function logout(){await supabase.auth.signOut();}
@@ -140,6 +186,24 @@
             React.createElement('div',null,React.createElement('textarea',{className:'textarea',value:bio,onChange:e=>setBio(e.target.value),placeholder:'Bio'})),
             React.createElement('div',{style:{height:8}}),
             React.createElement('div',null,React.createElement('button',{className:'btn',onClick:saveProfile},'Save profile'))
+          ),
+
+          React.createElement('div',{className:'panel'},
+            React.createElement('div',{style:{fontWeight:700,marginBottom:10}},'Manage Followers'),
+            React.createElement('div',{className:'row'},
+              React.createElement('input',{className:'input',style:{flex:1},value:searchEmail,onChange:e=>setSearchEmail(e.target.value),placeholder:'Search by email or handle'}),
+              React.createElement('button',{className:'btn',onClick:searchUser},'Search')
+            ),
+            searchResult?React.createElement('div',{style:{marginTop:10}},
+              React.createElement('div',{style:{marginBottom:8}},searchResult.display_name||searchResult.handle),
+              React.createElement('div',{className:'chips'},circleOptions.map(c=>React.createElement('button',{key:c,className:'chip',onClick:()=>assignCircle(searchResult.id,c)},c)))
+            ):null,
+            React.createElement('div',{style:{marginTop:10}},
+              React.createElement('button',{className:'btn',onClick:loadMyFollowers},'Show My Followers'),
+              myFollowers.length>0?React.createElement('div',{style:{marginTop:8}},myFollowers.map(f=>React.createElement('div',{key:f.member_id,style:{padding:8,borderRadius:8,background:'rgba(255,255,255,0.02)',marginBottom:6}},
+                React.createElement('div',null,(f.profiles?.display_name||f.profiles?.handle||'User')+' → '+f.circle)
+              ))):null
+            )
           ),
 
           React.createElement('div',{className:'panel'},
