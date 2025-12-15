@@ -116,7 +116,7 @@
       function LoginScreen({onSignIn}){
         return React.createElement('div',{className:'panel panel-login'},
           React.createElement('div',{className:'brand'},
-            React.createElement('img',{src:'cz-logo.png?v='+Date.now(),alt:'CIRCLEZ',className:'brand-logo',style:{width:44,height:44}}),
+            React.createElement('img',{src:'cz-logo.png',alt:'CIRCLEZ',className:'brand-logo',style:{width:44,height:44}}),
             React.createElement('div',null,
               React.createElement('div',{className:'brand-title'},'CIRCLEZ')
             )
@@ -172,8 +172,6 @@
         const [messageText,setMessageText]=useState('');
         const [deletingMedia,setDeletingMedia]=useState(null);
         const [openMediaMenu,setOpenMediaMenu]=useState(null); // key string for 3-dots menu
-        const [openComments,setOpenComments]=useState({});
-        const [conversations,setConversations]=useState([]);
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
@@ -317,7 +315,6 @@
             const assignedCircle = circleMap[p.author_id];
             if(!assignedCircle) return true; // No relationship = public view (show all for now)
             const postCircles = p.circlez || [];
-            if(postCircles.includes('Private')) return false; // Private posts are author-only
             return postCircles.includes(assignedCircle); // Only show if assigned circle matches post's circles
           });
           
@@ -431,50 +428,6 @@
             .order('created_at',{ascending:true});
           if(!error){setMessages(data||[])}
         }
-
-        async function loadConversations(){
-          if(!session)return;
-          const uid=session.user.id;
-          const { data, error } = await supabase
-            .from('messages')
-            .select('sender_id,recipient_id,created_at')
-            .or(`sender_id.eq.${uid},recipient_id.eq.${uid}`)
-            .order('created_at',{ascending:false})
-            .limit(500);
-          if(error){console.error('Load conversations',error);return}
-          const peers=new Set();
-          (data||[]).forEach(m=>{const other=m.sender_id===uid?m.recipient_id:m.sender_id;peers.add(other)});
-          const ids=[...peers];
-          if(ids.length===0){setConversations([]);return}
-          const { data: profs } = await supabase.from('profiles').select('id,handle,display_name,profile_photo_').in('id',ids);
-          const map={};(profs||[]).forEach(p=>map[p.id]=p);
-          setConversations(ids.map(id=>({id,profile:map[id]||{id,handle:'@member'}})));
-        }
-
-        function toggleComments(postId){
-          setOpenComments(prev=>({...prev,[postId]:!prev[postId]}));
-          if(!openComments[postId]){loadPostComments(postId)}
-        }
-
-        async function handleVideoReplySelect(e, postId, recipientId){
-          if(!session||!e.target.files||!e.target.files[0])return;
-          const file=e.target.files[0];
-          if(!file.type.startsWith('video/')){safeAlert('Select a video');return}
-          if(file.size>MAX_POST_VIDEO_BYTES){safeAlert('Video too large (max 25MB)');return}
-          try{
-            setComposingMedia(true);
-            const timestamp=Date.now();
-            const path=`messages/${session.user.id}/cm_${timestamp}.mp4`;
-            const { error: upErr } = await supabase.storage.from('media').upload(path,file,{upsert:true});
-            if(upErr){console.error('CM upload',upErr);safeAlert('Failed to upload video');setComposingMedia(false);return}
-            const url=supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
-            const { error: msgErr } = await supabase.from('messages').insert({sender_id:session.user.id,recipient_id:recipientId,content:`VIDEO:${url} [post:${postId}]`});
-            if(msgErr){console.error('CM send',msgErr);safeAlert('Failed to send video');}
-            else{safeAlert('CM video sent');if(selectedMessenger===recipientId)await loadMessages(recipientId)}
-          }finally{setComposingMedia(false);e.target.value=''}
-        }
-
-        useEffect(()=>{if(currentView==='cm' && session){loadConversations()}},[currentView,session])
 
         async function post(){
           if(!session||(!content.trim()&&composeMedia.length===0))return;
@@ -624,18 +577,6 @@
           setMediaGallery(items);
         }
 
-        async function copyLink(url){
-          try{
-            if(navigator?.clipboard?.writeText){
-              await navigator.clipboard.writeText(url);
-            }else{
-              const ta=document.createElement('textarea');
-              ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-            }
-            safeAlert('Link copied');
-          }catch(err){console.error('Copy link error',err);safeAlert('Could not copy link')}
-        }
-
         function getBucketPathFromUrl(u){
           try{
             if(!u)return null;
@@ -695,7 +636,7 @@
         if(!session)return React.createElement(LoginScreen,null)
 
         const handle = profile?.handle || getHandleForUser(session.user);
-        const circleOptions=['Family','Close Friends','Work','Community','Fans / Public','Private'];
+        const circleOptions=['Family','Close Friends','Work','Community','Fans / Public'];
         const moodOptions=['Laugh','Learn','Music','Peace','Motivation'];
         const fontOptions=[{value:'default',label:'Default'},{value:'serif',label:'Serif'},{value:'mono',label:'Mono'},{value:'rounded',label:'Rounded'},{value:'display',label:'Display'}];
 
@@ -840,7 +781,7 @@
             React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0||composeMedia.length>0?' glow':''),onClick:post,disabled:composingMedia},composingMedia?'Posting...':'Post to Circlez'))
           ),
 
-          React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},currentView==='media'?'Your Media':currentView==='cm'?'CM — Circled Message':'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:()=>setCurrentView('feed')},'Feed'),React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()},style:{marginLeft:4}},'Media'),React.createElement('button',{className:'btn'+(currentView==='cm'?' primary':''),onClick:()=>{setCurrentView('cm');},style:{marginLeft:4}},'CM')))),
+          React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},currentView==='media'?'Your Media':'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:()=>setCurrentView('feed')},'Feed'),React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()},style:{marginLeft:4}},'Media'))),
             React.createElement('div',{style:{height:8}}),
             currentView==='feed'?
             feed.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
@@ -862,9 +803,7 @@
                         React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.85)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:800,letterSpacing:1}},'CIRCLEZ'),
                         canDelete?React.createElement('div',{style:{position:'absolute',top:4,right:4}},
                           React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)} ,style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
-                          openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:140,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
-                            React.createElement('button',{onClick:(e)=>{e.stopPropagation();copyLink(url);setOpenMediaMenu(null)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#e5e7eb',padding:'8px 10px',cursor:'pointer'}},'Copy Link'),
-                            React.createElement('div',{style:{height:1,background:'rgba(148,163,184,0.15)'}}),
+                          openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
                             React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(p.id,url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
                           ):null
                         ):null
@@ -880,26 +819,9 @@
                   )
                 )
               : null,
-              React.createElement('div',{className:'tags',style:{marginBottom:8}},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m))),
-              React.createElement('div',{className:'row',style:{gap:6,marginTop:6}},
-                React.createElement('button',{className:'btn',onClick:()=>toggleComments(p.id)},openComments[p.id]?'Hide comments':'Comments'),
-                React.createElement('label',{htmlFor:'cmVideo_'+p.id,className:'chip',style:{cursor:'pointer'}},'CM Video Reply'),
-                React.createElement('input',{id:'cmVideo_'+p.id,type:'file',accept:'video/*',onChange:(e)=>handleVideoReplySelect(e,p.id,p.author_id),style:{display:'none'}})
-              ),
-              openComments[p.id]?React.createElement('div',{style:{marginTop:6}},
-                (postComments[p.id]||[]).length===0?React.createElement('div',{className:'meta'},'No comments yet.'):
-                React.createElement('div',null,(postComments[p.id]||[]).map(cmt=>React.createElement('div',{key:cmt.id,style:{padding:'4px 0',borderBottom:'1px solid rgba(148,163,184,0.08)'}},
-                  React.createElement('span',{style:{fontWeight:700,marginRight:6}},cmt.profiles?.handle||'@user'),
-                  React.createElement('span',null,cmt.content)
-                ))),
-                React.createElement('div',{className:'row',style:{marginTop:6,gap:6}},
-                  React.createElement('input',{className:'input',value:commentText[p.id]||'',onChange:e=>setCommentText(prev=>({...prev,[p.id]:e.target.value})),placeholder:'Add a comment...',style:{flex:1}}),
-                  React.createElement('button',{className:'btn primary',onClick:()=>addComment(p.id)},'Comment')
-                )
-              ):null
+              React.createElement('div',{className:'tags',style:{marginBottom:8}},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m)))
             )))
             :
-            currentView==='media'?
             mediaGallery.length===0?React.createElement('div',{className:'meta'},'No photos or videos yet.'):
             React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}},
               mediaGallery.map(item=>{
@@ -910,43 +832,12 @@
                 React.createElement('img',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'}}),
                 React.createElement('div',{style:{position:'absolute',top:4,right:4}},
                   React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)},style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
-                  openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:140,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
-                    React.createElement('button',{onClick:(e)=>{e.stopPropagation();copyLink(item.url);setOpenMediaMenu(null)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#e5e7eb',padding:'8px 10px',cursor:'pointer'}},'Copy Link'),
-                    React.createElement('div',{style:{height:1,background:'rgba(148,163,184,0.15)'}}),
+                  openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
                     React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(item.id,item.url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
                   ):null
                 ),
                 React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.85)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:800,letterSpacing:1}},'CIRCLEZ')
               )})
-            )
-            :
-            React.createElement('div',{className:'row',style:{gap:12}},
-              React.createElement('div',{style:{flex:'0 0 200px'}},
-                React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Conversations'),
-                conversations.length===0?React.createElement('div',{className:'meta'},'No CM yet.'):
-                React.createElement('div',null,conversations.map(c=>React.createElement('div',{key:c.id,className:'row',style:{alignItems:'center',gap:8,marginBottom:6,cursor:'pointer'},onClick:()=>{setSelectedMessenger(c.id);loadMessages(c.id)}},
-                  c.profile?.profile_photo_?React.createElement('img',{src:c.profile.profile_photo_,style:{width:28,height:28,borderRadius:999,objectFit:'cover'}}):React.createElement('div',{style:{width:28,height:28,borderRadius:999,background:'rgba(34,197,94,0.2)'}}),
-                  React.createElement('div',{style:{fontWeight:700,overflow:'hidden',textOverflow:'ellipsis'}},c.profile?.display_name||c.profile?.handle||'@member')
-                )))
-              ),
-              React.createElement('div',{style:{flex:1}},
-                selectedMessenger?React.createElement('div',null,
-                  React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Chat'),
-                  React.createElement('div',{style:{maxHeight:260,overflowY:'auto',padding:8,border:'1px solid rgba(148,163,184,0.15)',borderRadius:8}},
-                    messages.map(m=>React.createElement('div',{key:m.id,style:{marginBottom:6,textAlign:m.sender_id===session.user.id?'right':'left'}},
-                      React.createElement('div',{style:{display:'inline-block',padding:'6px 8px',borderRadius:8,background:m.sender_id===session.user.id?'rgba(34,197,94,0.2)':'rgba(148,163,184,0.12)'}},
-                        (m.content||'').startsWith('VIDEO:')?React.createElement('video',{src:m.content.replace('VIDEO:','').split(' ')[0],controls:true,style:{maxWidth:'100%'}}):m.content
-                      )
-                    ))
-                  ),
-                  React.createElement('div',{className:'row',style:{marginTop:8,gap:6}},
-                    React.createElement('input',{className:'input',value:messageText,onChange:e=>setMessageText(e.target.value),placeholder:'Message...',style:{flex:1}}),
-                    React.createElement('button',{className:'btn',onClick:()=>sendMessage(selectedMessenger)},'Send'),
-                    React.createElement('label',{htmlFor:'cmVideo_chat',className:'chip',style:{cursor:'pointer'}},'Attach video'),
-                    React.createElement('input',{id:'cmVideo_chat',type:'file',accept:'video/*',onChange:(e)=>handleVideoReplySelect(e,0,selectedMessenger),style:{display:'none'}})
-                  )
-                ):React.createElement('div',{className:'meta'},'Select a conversation')
-              )
             )
           )
         )
