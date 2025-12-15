@@ -763,7 +763,7 @@
             ),
             React.createElement('div',{className:'stories'},
               storiesMembers.length===0?React.createElement('div',{className:'meta'},'No people in this circle yet.'):
-              storiesMembers.filter(m=>m.handle!=='@member').map(m=>React.createElement('div',{key:m.id,className:'story'},
+              storiesMembers.map(m=>React.createElement('div',{key:m.id,className:'story'},
                 React.createElement('div',{className:'story-ring',style:{boxShadow:'0 0 14px rgba(34,197,94,0.6)'}},
                   m.photo?React.createElement('img',{src:m.photo,className:'story-ava',onClick:()=>openStory(m)}):React.createElement('div',{className:'story-ava',onClick:()=>openStory(m)},(m.handle||'@u')[1]?.toUpperCase()||'U')
                 ),
