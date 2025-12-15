@@ -147,7 +147,31 @@
 
         function resizeImageToSquare(file,size=256){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;const ctx=canvas.getContext('2d');const iw=img.width, ih=img.height;const scale=Math.max(size/iw,size/ih);const sw=size/scale, sh=size/scale;const sx=(iw-sw)/2, sy=(ih-sh)/2;ctx.drawImage(img,sx,sy,sw,sh,0,0,size,size);canvas.toBlob(b=>b?resolve(b):reject(new Error('Blob failed')),'image/jpeg',0.9)}catch(err){reject(err)}};img.onerror=reject;img.src=URL.createObjectURL(file)})}
 
-        async function saveProfilePhoto(){if(!session||!pendingPhoto)return;try{setUploadingPhoto(true);const resized=await resizeImageToSquare(pendingPhoto,256);const resizedFile=new File([resized],'avatar.jpg',{type:'image/jpeg'});const url=await uploadToBucket(resizedFile,session.user.id,'photos');if(url){const { error } = await supabase.from('profiles').update({profile_photo_:url}).eq('id',session.user.id);if(error){console.error('Photo save error',error);safeAlert('Failed to save photo')}else{await loadProfile(session.user);safeAlert('Photo saved!')}}}catch(err){console.error('Resize/upload error',err);safeAlert('Could not process photo')}finally{if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}setPendingPhoto(null);setPendingPhotoUrl(null);setUploadingPhoto(false)}}
+        async function saveProfilePhoto(){
+          if(!session||!pendingPhoto)return;
+          try{
+            setUploadingPhoto(true);
+            const resized=await resizeImageToSquare(pendingPhoto,256);
+            const resizedFile=new File([resized],'avatar.jpg',{type:'image/jpeg'});
+            const url=await uploadToBucket(resizedFile,session.user.id,'photos');
+            if(url){
+              const { error } = await supabase.from('profiles').update({profile_photo_:url}).eq('id',session.user.id);
+              if(error){
+                console.error('Photo save error',error);safeAlert('Failed to save photo')
+              }else{
+                // Optimistically update local state so the header avatar updates immediately
+                setProfile(prev=>prev?{...prev,profile_photo_:url}:prev);
+                await loadProfile(session.user);
+                safeAlert('Photo saved!')
+              }
+            }
+          }catch(err){
+            console.error('Resize/upload error',err);safeAlert('Could not process photo')
+          }finally{
+            if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}
+            setPendingPhoto(null);setPendingPhotoUrl(null);setUploadingPhoto(false)
+          }
+        }
 
         async function handleVideoUpload(e){if(!session||!e.target.files||!e.target.files[0])return;const file=e.target.files[0];if(file.size>MAX_INTRO_VIDEO_BYTES){safeAlert('Video must be under 25MB');return}const video=document.createElement('video');video.preload='metadata';video.onloadedmetadata=async()=>{window.URL.revokeObjectURL(video.src);if(video.duration>5.5){safeAlert('Video must be 5 seconds or less');return}setUploadingVideo(true);const url=await uploadToBucket(file,session.user.id,'intro-videos');if(url){const{error}=await supabase.from('profiles').update({avatar_url:url}).eq('id',session.user.id);if(!error){await loadProfile(session.user);safeAlert('Intro video uploaded!')}else{console.error('Video save error',error);safeAlert('Failed to save video')}}setUploadingVideo(false)};video.src=URL.createObjectURL(file)}
 
@@ -293,7 +317,12 @@
               )
             )
           ):null,
-            React.createElement('div',{className:'row',style:{alignItems:'center',marginBottom:8}},profile?.profile_photo_?React.createElement('img',{src:profile.profile_photo_,style:{width:50,height:50,borderRadius:999,objectFit:'cover',border:'2px solid rgba(34,197,94,0.5)',marginRight:10}}):React.createElement('div',{style:{width:50,height:50,borderRadius:999,background:'rgba(34,197,94,0.15)',border:'2px solid rgba(34,197,94,0.5)',marginRight:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'rgba(34,197,94,0.9)'}},handle?handle[1].toUpperCase():'?'),React.createElement('div',{style:{flex:1,minWidth:0}},React.createElement('div',{style:{fontWeight:700}} , handle))),
+            React.createElement('div',{className:'row',style:{alignItems:'center',marginBottom:8}},
+              (pendingPhotoUrl||profile?.profile_photo_)?
+                React.createElement('img',{src:pendingPhotoUrl||profile.profile_photo_,style:{width:50,height:50,borderRadius:999,objectFit:'cover',border:'2px solid rgba(34,197,94,0.5)',marginRight:10}}):
+                React.createElement('div',{style:{width:50,height:50,borderRadius:999,background:'rgba(34,197,94,0.15)',border:'2px solid rgba(34,197,94,0.5)',marginRight:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'rgba(34,197,94,0.9)'}},handle?handle[1].toUpperCase():'?'),
+              React.createElement('div',{style:{flex:1,minWidth:0}},React.createElement('div',{style:{fontWeight:700}} , handle))
+            ),
             React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),React.createElement('button',{className:'btn',onClick:logout},'Log out')),
             React.createElement('div',{style:{height:8}}),
             profile?.avatar_url?React.createElement('div',{style:{marginBottom:8}},React.createElement('video',{src:profile.avatar_url,controls:true,style:{width:'100%',maxWidth:300,borderRadius:8,border:'2px solid rgba(34,197,94,0.5)'}})):null,
