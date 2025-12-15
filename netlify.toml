@@ -1,0 +1,3 @@
+[build]
+  command = "mkdir -p dist && cp legacy.html dist/index.html"
+  publish = "dist"
