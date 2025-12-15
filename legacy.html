@@ -173,6 +173,8 @@
         const [messageText,setMessageText]=useState('');
         const [dmUploading,setDmUploading]=useState(false);
         const [conversations,setConversations]=useState([]);
+        const [cmSearch,setCmSearch]=useState('');
+        const [cmSearchResult,setCmSearchResult]=useState(null);
         const [deletingMedia,setDeletingMedia]=useState(null);
         const [openMediaMenu,setOpenMediaMenu]=useState(null); // key string for 3-dots menu
         const dmFileInputRef=useRef(null);
@@ -504,6 +506,20 @@
             if(m.sender_id===session.user.id){return m.read_at;}
           }
           return null;
+        }
+
+        async function searchCmUser(){
+          if(!cmSearch.trim())return;
+          const q=cmSearch.trim();
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id,handle,display_name,profile_photo_')
+            .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
+            .neq('id',session.user.id)
+            .limit(1)
+            .maybeSingle();
+          if(error){console.error('CM search error',error);return;}
+          setCmSearchResult(data||null);
         }
 
         async function loadConversations(){
@@ -969,6 +985,16 @@
             React.createElement('div',{className:'row',style:{gap:12}},
               React.createElement('div',{style:{flex:'0 0 200px'}},
                 React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Conversations'),
+                React.createElement('div',{className:'row',style:{gap:4,marginBottom:8}},
+                  React.createElement('input',{className:'input',value:cmSearch,onChange:e=>setCmSearch(e.target.value),placeholder:'Search by handle...',style:{flex:1,minWidth:0}}),
+                  React.createElement('button',{className:'btn',onClick:searchCmUser},'🔍')
+                ),
+                cmSearchResult?React.createElement('div',{style:{marginBottom:8,padding:8,borderRadius:8,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',cursor:'pointer'},onClick:()=>{setSelectedMessenger(cmSearchResult.id);loadMessages(cmSearchResult.id);setCmSearchResult(null);setCmSearch('')}},
+                  React.createElement('div',{className:'row',style:{alignItems:'center',gap:8}},
+                    cmSearchResult.profile_photo_?React.createElement('img',{src:cmSearchResult.profile_photo_,style:{width:28,height:28,borderRadius:999,objectFit:'cover'}}):React.createElement('div',{style:{width:28,height:28,borderRadius:999,background:'rgba(34,197,94,0.2)'}}),
+                    React.createElement('div',{style:{fontWeight:700}},(cmSearchResult.display_name||cmSearchResult.handle||'@user'))
+                  )
+                ):null,
                 conversations.length===0?React.createElement('div',{className:'meta'},'No CM yet.'):
                 React.createElement('div',null,conversations.map(c=>React.createElement('div',{key:c.id,className:'row',style:{alignItems:'center',gap:8,marginBottom:6,cursor:'pointer'},onClick:()=>{setSelectedMessenger(c.id);loadMessages(c.id)}},
                   c.profile?.profile_photo_?React.createElement('img',{src:c.profile.profile_photo_,style:{width:28,height:28,borderRadius:999,objectFit:'cover'}}):React.createElement('div',{style:{width:28,height:28,borderRadius:999,background:'rgba(34,197,94,0.2)'}}),
