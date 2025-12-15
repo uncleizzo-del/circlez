@@ -178,6 +178,7 @@
         const [searchEmail,setSearchEmail]=useState('');
         const [searchResult,setSearchResult]=useState(null);
         const [myFollowers,setMyFollowers]=useState([]);
+          const [blockedUsers,setBlockedUsers]=useState([]);
         const [logoUrl,setLogoUrl]=useState('cz-logo.png');
         const [uploadingLogo,setUploadingLogo]=useState(false);
         const [currentView,setCurrentView]=useState('feed');
@@ -206,9 +207,9 @@
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
             setSession(data.session||null);setLoading(false);
-            if(data.session){loadProfile(data.session.user);loadFeed();loadLogo()}
+            if(data.session){loadProfile(data.session.user);loadBlockedUsers();loadFeed();loadLogo()}
           }).catch(err=>{console.error('Session error:',err);setLoading(false)});
-          const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadFeed();loadLogo()}else{setProfile(null);setFeed([])}})
+          const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadBlockedUsers();loadFeed();loadLogo()}else{setProfile(null);setFeed([])}})
           return ()=>listener.subscription.unsubscribe();
         },[])
 
@@ -307,6 +308,31 @@
 
         function toggle(setter,arr,label){setter(prev=>prev.includes(label)?prev.filter(x=>x!==label):prev.concat(label))}
 
+        function containsHateSpeech(text){
+          if(!text)return false;
+          const lowerText=text.toLowerCase();
+          const hateKeywords=['hate','kill','nazi','hitler','holocaust denial','antisemit','jew hatred','racial slur','kike','nigger','faggot','terrorist','genocide support','ethnic cleansing','white supremac','kkk','burn them','gas them','subhuman'];
+          return hateKeywords.some(keyword=>lowerText.includes(keyword));
+        }
+
+        async function blockUser(userId){
+          if(!session||!userId)return;
+          const{error}=await supabase.from('relationships').upsert({owner_id:session.user.id,member_id:userId,circle:'BLOCKED'},{onConflict:'owner_id,member_id'});
+          if(error){console.error('Block error',error);safeAlert('Failed to block user')}else{setBlockedUsers(prev=>[...prev,userId]);safeAlert('User blocked');await loadFeed();await loadStories(storiesCircle)}
+        }
+
+        async function unblockUser(userId){
+          if(!session||!userId)return;
+          const{error}=await supabase.from('relationships').delete().eq('owner_id',session.user.id).eq('member_id',userId).eq('circle','BLOCKED');
+          if(error){console.error('Unblock error',error);safeAlert('Failed to unblock user')}else{setBlockedUsers(prev=>prev.filter(id=>id!==userId));safeAlert('User unblocked');await loadFeed();await loadStories(storiesCircle)}
+        }
+
+        async function loadBlockedUsers(){
+          if(!session)return;
+          const{data}=await supabase.from('relationships').select('member_id').eq('owner_id',session.user.id).eq('circle','BLOCKED');
+          setBlockedUsers((data||[]).map(r=>r.member_id));
+        }
+
         async function loadFeed(){
           setLoadingFeed(true);
           if(!session){setLoadingFeed(false);return}
@@ -348,6 +374,8 @@
           // Filter posts based on circle visibility
           const visiblePosts = allPosts.filter(p => {
             if(p.author_id === currentUserId) return true; // Always see your own posts
+                        if(blockedUsers.includes(p.author_id)) return false; // Hide blocked users
+                        if(containsHateSpeech(p.content)) return false; // Block hate speech
             const assignedCircle = circleMap[p.author_id];
             if(!assignedCircle) return true; // No relationship = public view (show all for now)
             const postCircles = p.circlez || [];
@@ -1007,6 +1035,12 @@
                 )
               : null,
               React.createElement('div',{className:'tags',style:{marginBottom:8}},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m)))
+                          ,
+                          p.author_id!==session?.user?.id?React.createElement('div',{style:{marginTop:6}},
+                            blockedUsers.includes(p.author_id)?
+                              React.createElement('button',{className:'btn',onClick:()=>unblockUser(p.author_id),style:{fontSize:12,padding:'4px 8px'}},'Unblock'):
+                              React.createElement('button',{className:'btn',onClick:()=>blockUser(p.author_id),style:{fontSize:12,padding:'4px 8px',color:'#ef4444'}},'Block user')
+                          ):null
             )))
             :
             currentView==='media'?
