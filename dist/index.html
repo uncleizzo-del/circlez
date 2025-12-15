@@ -102,7 +102,7 @@
           supabase.auth.getSession().then(({data})=>{
             setSession(data.session||null);setLoading(false);
             if(data.session){loadProfile(data.session.user);loadFeed()}
-          });
+          }).catch(err=>{console.error('Session error:',err);setLoading(false)});
           const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadFeed()}else{setProfile(null);setFeed([])}})
           return ()=>listener.subscription.unsubscribe();
         },[])
