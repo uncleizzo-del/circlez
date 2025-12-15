@@ -158,6 +158,8 @@
         const [uploadingLogo,setUploadingLogo]=useState(false);
         const [currentView,setCurrentView]=useState('feed');
         const [mediaGallery,setMediaGallery]=useState([]);
+        const [composeMedia,setComposeMedia]=useState([]);
+        const [composingMedia,setComposingMedia]=useState(false);
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
@@ -317,10 +319,43 @@
         function prevStory(){setStoryIndex(i=>Math.max(i-1,0))}
 
         async function post(){
-          if(!session||!content.trim())return;const user=session.user;const payload={content:content.trim(),author_id:user.id,author_handle:(profile?.handle||getHandleForUser(user)),circlez:selectedCircles,mood:selectedMoods};
+          if(!session||(!content.trim()&&composeMedia.length===0))return;
+          setComposingMedia(true);
+          const user=session.user;
+          const mediaUrls=[];
+          
+          // Upload media files
+          for(const mediaItem of composeMedia){
+            try{
+              const path=`${user.id}/posts/${Date.now()}_${Math.random().toString(36).slice(2)}`;
+              const { error } = await supabase.storage.from('media').upload(path,mediaItem.file);
+              if(error){console.error('Media upload error:',error);continue}
+              const url=supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
+              mediaUrls.push(url);
+            }catch(err){console.error('Upload error:',err)}
+          }
+          
+          const payload={content:content.trim(),author_id:user.id,author_handle:(profile?.handle||getHandleForUser(user)),circlez:selectedCircles,mood:selectedMoods,media_urls:mediaUrls.length>0?mediaUrls:null};
           const { error } = await supabase.from('posts').insert(payload);
-          if(error){console.error('Post error',error);safeAlert('Could not post');return}
-          setContent('');setSelectedMoods([]);await loadFeed();
+          if(error){console.error('Post error',error);safeAlert('Could not post');setComposingMedia(false);return}
+          setContent('');setSelectedMoods([]);setComposeMedia([]);setComposingMedia(false);await loadFeed();
+        }
+
+        function handleComposeMediaSelect(e){
+          if(!e.target.files)return;
+          const newMedia=Array.from(e.target.files).map(file=>{
+            const isVideo=file.type.startsWith('video/');
+            const isImage=file.type.startsWith('image/');
+            if(!isVideo&&!isImage){safeAlert('Please select an image or video');return null}
+            const maxSize=isVideo?MAX_POST_VIDEO_BYTES:MAX_POST_IMAGE_BYTES;
+            if(file.size>maxSize){safeAlert('File too large');return null}
+            return{file,url:URL.createObjectURL(file),type:isVideo?'video':'image'};
+          }).filter(Boolean);
+          setComposeMedia(prev=>[...prev,...newMedia]);
+        }
+
+        function removeComposeMedia(idx){
+          setComposeMedia(prev=>prev.filter((_,i)=>i!==idx));
         }
 
         async function searchUser(){
@@ -551,11 +586,26 @@
             React.createElement('div',{style:{height:6}}),
             React.createElement('textarea',{className:'textarea',value:content,onChange:e=>setContent(e.target.value),placeholder:'Drop a thought…'}),
             React.createElement('div',{style:{height:8}}),
+            composeMedia.length>0?
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(80px,1fr))',gap:6,marginBottom:10,padding:8,background:'rgba(34,197,94,0.05)',borderRadius:8,border:'1px solid rgba(34,197,94,0.2)'}},
+              composeMedia.map((m,i)=>React.createElement('div',{key:i,style:{aspectRatio:'1/1',position:'relative',borderRadius:6,overflow:'hidden',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)'}},
+                m.type==='video'?
+                React.createElement('video',{src:m.url,style:{width:'100%',height:'100%',objectFit:'cover'}}):
+                React.createElement('img',{src:m.url,style:{width:'100%',height:'100%',objectFit:'cover'}}),
+                React.createElement('button',{onClick:()=>removeComposeMedia(i),style:{position:'absolute',top:2,right:2,background:'rgba(239,68,68,0.9)',color:'white',border:'none',borderRadius:999,width:24,height:24,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',padding:0}},'+')
+              ))
+            ):
+            React.createElement('div',{style:{padding:12,textAlign:'center',background:'rgba(34,197,94,0.05)',borderRadius:8,border:'1.5px dashed rgba(34,197,94,0.3)',marginBottom:10,color:'rgba(34,197,94,0.7)',fontSize:13}},composeMedia.length===0?'📸 Add photos or videos to your post':''),
+            React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},
+              React.createElement('input',{id:'composeMediaInput',type:'file',accept:'image/*,video/*',multiple:true,onChange:handleComposeMediaSelect,style:{display:'none'}}),
+              React.createElement('label',{htmlFor:'composeMediaInput',className:'btn',style:{cursor:'pointer',flex:1,textAlign:'center'}},'📷 Add Media'),
+              composeMedia.length>0?React.createElement('button',{className:'btn',onClick:()=>setComposeMedia([])},'Clear'):null
+            ),
             React.createElement('div',null,React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Circlez'),React.createElement('div',{className:'chips'},circleOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedCircles.includes(label)?' selected':''),onClick:()=>toggle(setSelectedCircles,selectedCircles,label)},label)))),
             React.createElement('div',{style:{height:8}}),
             React.createElement('div',null,React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Mood / intent'),React.createElement('div',{className:'chips'},moodOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedMoods.includes(label)?' selected':''),onClick:()=>toggle(setSelectedMoods,selectedMoods,label)},label)))) ,
             React.createElement('div',{style:{height:10}}),
-            React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0?' glow':''),onClick:post},'Post to Circlez'))
+            React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0||composeMedia.length>0?' glow':''),onClick:post,disabled:composingMedia},composingMedia?'Posting...':'Post to Circlez'))
           ),
 
           React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},currentView==='media'?'Your Media':'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:()=>setCurrentView('feed')},'Feed'),React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()},style:{marginLeft:4}},'Media'))),
