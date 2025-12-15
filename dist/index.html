@@ -170,6 +170,8 @@
         const [messages,setMessages]=useState([]);
         const [selectedMessenger,setSelectedMessenger]=useState(null);
         const [messageText,setMessageText]=useState('');
+        const [deletingMedia,setDeletingMedia]=useState(null);
+        const [openMediaMenu,setOpenMediaMenu]=useState(null); // key string for 3-dots menu
 
         useEffect(()=>{
           supabase.auth.getSession().then(({data})=>{
@@ -275,9 +277,29 @@
           const currentUserId = session.user.id;
           console.log('📥 Loading feed for user:',currentUserId);
           
-          // Load all posts with author profile info
-          let res = await supabase.from('posts').select('id,content,created_at,author_id,author_handle,circlez,mood,media_urls,profiles!posts_author_id_fkey(certified)').order('created_at',{ascending:false}).limit(50);
-          if(res.error){console.error('❌ Feed error:',res.error);setLoadingFeed(false);return}
+          // Load all posts with author profile info; if the DB is missing newer columns, fall back gracefully
+          const baseSelect='id,content,created_at,author_id,author_handle,circlez,mood,media_urls,profiles!posts_author_id_fkey(certified)';
+          let selectCols=baseSelect;
+          let res = await supabase.from('posts').select(selectCols).order('created_at',{ascending:false}).limit(50);
+          if(res.error){
+            const msg=(res.error.message||'').toLowerCase();
+            const missingColumn = msg.includes('column') && msg.includes('does not exist');
+            const relError = msg.includes('relation')||msg.includes('foreign key')||msg.includes('join')||msg.includes('unknown relationship');
+            console.warn('⚠️ Feed query initial error, retrying with reduced select',res.error);
+            selectCols = missingColumn ? 'id,content,created_at,author_id,author_handle' : relError ? 'id,content,created_at,author_id,author_handle,circlez,mood,media_urls' : 'id,content,created_at,author_id,author_handle';
+            res = await supabase.from('posts').select(selectCols).order('created_at',{ascending:false}).limit(50);
+          }
+          if(res.error){
+            console.warn('⚠️ Feed retry failed, trying bare minimum columns',res.error);
+            selectCols='id,content,created_at';
+            res = await supabase.from('posts').select(selectCols).order('created_at',{ascending:false}).limit(50);
+          }
+          if(res.error){
+            console.error('❌ Feed error (after all retries):',res.error);
+            safeAlert('Feed unavailable: '+(res.error.message||'check posts columns/FK/policies'));
+            setLoadingFeed(false);
+            return;
+          }
           const allPosts = res.data||[];
           console.log('📊 All posts loaded:',allPosts.length,allPosts);
           
@@ -555,6 +577,43 @@
           setMediaGallery(items);
         }
 
+        function getBucketPathFromUrl(u){
+          try{
+            if(!u)return null;
+            const pub = '/storage/v1/object/public/media/';
+            if(u.includes(pub)) return u.split(pub)[1].split('?')[0];
+            const sign = '/object/sign/media/';
+            if(u.includes(sign)) return u.split(sign)[1].split('?')[0];
+            const idx=u.indexOf('/media/');
+            if(idx>=0) return u.slice(idx+7).split('?')[0];
+            return null;
+          }catch(_e){return null}
+        }
+
+        async function deleteMedia(postId,url){
+          if(!session||!url||!postId)return;
+          const canProceed = window.confirm('Delete this media?');
+          if(!canProceed)return;
+          setDeletingMedia(url);
+          try{
+            const { data: post, error: selErr } = await supabase.from('posts').select('author_id,media_urls').eq('id',postId).maybeSingle();
+            if(selErr||!post){ console.error('Load post for delete',selErr); safeAlert('Could not load post'); return; }
+            if(post.author_id!==session.user.id && !isAdmin(session.user)){ safeAlert('You can only delete your own media'); return; }
+            const newUrls = (post.media_urls||[]).filter(u=>u!==url);
+            const { error: updErr } = await supabase.from('posts').update({ media_urls: newUrls.length>0?newUrls:null }).eq('id',postId);
+            if(updErr){ console.error('Update post media_urls error',updErr); safeAlert('Failed to update post'); return; }
+            const path = getBucketPathFromUrl(url);
+            if(path){
+              const { error: delErr } = await supabase.storage.from('media').remove([path]);
+              if(delErr){ console.warn('Storage delete warning',delErr); }
+            }
+            await loadFeed();
+            await loadMediaGallery();
+            safeAlert('Media deleted');
+          }catch(err){ console.error('Delete media error',err); safeAlert('Could not delete media'); }
+          finally{ setDeletingMedia(null); }
+        }
+
         async function logout(){
           try{await supabase.auth.signOut({ scope:'global' });}
           catch(e){console.error('Sign out error:',e)}
@@ -708,10 +767,10 @@
                 React.createElement('button',{onClick:()=>removeComposeMedia(i),style:{position:'absolute',top:2,right:2,background:'rgba(239,68,68,0.9)',color:'white',border:'none',borderRadius:999,width:24,height:24,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',padding:0}},'+')
               ))
             ):
-            React.createElement('div',{style:{padding:12,textAlign:'center',background:'rgba(34,197,94,0.05)',borderRadius:8,border:'1.5px dashed rgba(34,197,94,0.3)',marginBottom:10,color:'rgba(34,197,94,0.7)',fontSize:13}},composeMedia.length===0?'📸 Add photos or videos to your post':''),
+            null,
             React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},
               React.createElement('input',{id:'composeMediaInput',type:'file',accept:'image/*,video/*',multiple:true,onChange:handleComposeMediaSelect,style:{display:'none'}}),
-              React.createElement('label',{htmlFor:'composeMediaInput',className:'btn',style:{cursor:'pointer',flex:1,textAlign:'center'}},'📷 Add Media'),
+              React.createElement('label',{htmlFor:'composeMediaInput',className:'chip',style:{cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,fontWeight:700,letterSpacing:0.2}},'📷','Add Media'),
               composeMedia.length>0?React.createElement('button',{className:'btn primary glow',onClick:post,disabled:composingMedia,style:{flex:1}},composingMedia?'Posting...':'✓ Save Post'):null,
               composeMedia.length>0?React.createElement('button',{className:'btn',onClick:()=>setComposeMedia([])},'Clear'):null
             ),
@@ -726,16 +785,59 @@
             React.createElement('div',{style:{height:8}}),
             currentView==='feed'?
             feed.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
-            React.createElement('div',null,feed.map(p=>React.createElement('div',{key:p.id,className:'post',style:{paddingBottom:12,borderBottom:'1px solid rgba(148,163,184,0.1)'}},React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6,marginBottom:6}},p.author_handle||'@member',p.certified?React.createElement(CertifiedBadge,{size:16}):null),React.createElement('div',{className:'meta',style:{marginBottom:6}},formatDate(p.created_at)),React.createElement('div',{style:{marginTop:8,marginBottom:8}},p.content),p.media_urls&&p.media_urls.length>0?React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginTop:8,marginBottom:8}},p.media_urls.map((url,idx)=>React.createElement('div',{key:idx,style:{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)'}},url.includes('.mp4')||url.includes('video')?React.createElement('video',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},controls:true}):React.createElement('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'}})))):null,React.createElement('div',{className:'tags',style:{marginBottom:8}},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m))))))
+            React.createElement('div',null,feed.map(p=>React.createElement('div',{key:p.id,className:'post',style:{paddingBottom:12,borderBottom:'1px solid rgba(148,163,184,0.1)'}},
+              React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6,marginBottom:6}},p.author_handle||'@member',p.certified?React.createElement(CertifiedBadge,{size:16}):null),
+              React.createElement('div',{className:'meta',style:{marginBottom:6}},formatDate(p.created_at)),
+              React.createElement('div',{style:{marginTop:8,marginBottom:8}},p.content),
+              p.media_urls&&p.media_urls.length>0?
+                (expandedPostId===p.id?
+                  React.createElement('div',null,
+                    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginTop:8,marginBottom:8}},
+                      p.media_urls.map((url,idx)=>{
+                        const canDelete = (p.author_id===session.user.id)||isAdmin(session.user);
+                        const menuKey = `feed:${p.id}:${idx}`;
+                        return React.createElement('div',{key:idx,style:{position:'relative',aspectRatio:'1/1',borderRadius:8,overflow:'hidden',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)'}},
+                        url.includes('.mp4')||url.includes('video')?
+                          React.createElement('video',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},controls:true}):
+                          React.createElement('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'}}),
+                        React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.85)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:800,letterSpacing:1}},'CIRCLEZ'),
+                        canDelete?React.createElement('div',{style:{position:'absolute',top:4,right:4}},
+                          React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)} ,style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
+                          openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                            React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(p.id,url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
+                          ):null
+                        ):null
+                      )})
+                    ),
+                    React.createElement('div',{style:{display:'flex',justifyContent:'flex-end'}},
+                      React.createElement('button',{className:'btn',onClick:()=>setExpandedPostId(null)},'Hide media')
+                    )
+                  )
+                  :
+                  React.createElement('div',{style:{marginTop:8,marginBottom:8,display:'flex',justifyContent:'center'}},
+                    React.createElement('button',{className:'btn',onClick:()=>setExpandedPostId(p.id)},`View media (${p.media_urls.length})`)
+                  )
+                )
+              : null,
+              React.createElement('div',{className:'tags',style:{marginBottom:8}},(p.circlez||[]).map(c=>React.createElement('span',{className:'chip',key:c},c)),(p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m)))
+            )))
             :
             mediaGallery.length===0?React.createElement('div',{className:'meta'},'No photos or videos yet.'):
             React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}},
-              mediaGallery.map(item=>React.createElement('div',{key:item.id,style:{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',cursor:'pointer',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)',position:'relative'}},
+              mediaGallery.map(item=>{
+                const menuKey = `gallery:${item.id}:${encodeURIComponent(item.url)}`;
+                return React.createElement('div',{key:item.id+'-'+item.url,style:{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',cursor:'default',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)',position:'relative'}},
                 item.type==='video'?
                 React.createElement('video',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'},controls:false}):
                 React.createElement('img',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'}}),
-                React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.8)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:600}},item.type==='video'?'▶ VIDEO':'📷 PHOTO')
-              ))
+                React.createElement('div',{style:{position:'absolute',top:4,right:4}},
+                  React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)},style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
+                  openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                    React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(item.id,item.url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
+                  ):null
+                ),
+                React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.85)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:800,letterSpacing:1}},'CIRCLEZ')
+              )})
             )
           )
         )
