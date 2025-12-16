@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>CIRCLEZ v2.1</title>
+    <style>
+      :root{--bg:#071126;--panel:rgba(2,6,23,0.45);--muted:rgba(229,231,235,0.8);--accent:#22c55e}
+      .theme-light{--bg:#f5f7fa;--panel:rgba(255,255,255,0.9);--muted:#1a202c;--accent:#22c55e}
+      *{box-sizing:border-box}
+      html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;overflow-x:hidden}
+      body{background:linear-gradient(180deg,#02030a 0%,#071126 60%);color:var(--muted);-webkit-font-smoothing:antialiased}
+      body.theme-light{background:linear-gradient(180deg,#f5f7fa 0%,#e2e8f0 60%)}
+      #root{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-x:hidden}
+      .app{width:100%;max-width:760px;overflow-x:hidden}
+      .brand{display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:12px 0;background:linear-gradient(90deg,rgba(34,197,94,0.05),transparent);border-radius:12px;padding-left:12px}
+      .brand-title{font-weight:900;letter-spacing:3px;font-size:24px;color:#22c55e;text-shadow:0 0 20px rgba(34,197,94,0.5);text-transform:uppercase}
+      .brand-logo{width:56px;height:56px;border-radius:12px;object-fit:cover;display:block;box-shadow:0 4px 20px rgba(34,197,94,0.3);transition:all 0.3s ease}
+      .brand-logo:hover{transform:scale(1.05);box-shadow:0 8px 30px rgba(34,197,94,0.5)}
+      .orb{width:44px;height:44px;border-radius:999px;background:radial-gradient(circle at 20% 20%,var(--accent),#081028);display:grid;place-items:center;font-weight:800;color:#e6eef0;transition:box-shadow 0.3s ease}
+      .orb.glow{box-shadow:0 0 20px rgba(34,197,94,0.6),0 0 40px rgba(34,197,94,0.4)}
+
+      .panel{background:var(--panel);border:1px solid rgba(148,163,184,0.08);border-radius:14px;padding:12px;margin-bottom:12px}
+      .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .input,.textarea{width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(148,163,184,0.08);background:transparent;color:var(--muted);padding:8px;font-size:16px}
+      .textarea{min-height:80px;resize:vertical}
+      .btn{background:transparent;border:1px solid rgba(148,163,184,0.12);color:var(--muted);border-radius:999px;padding:8px 12px;cursor:pointer;transition:box-shadow 0.3s ease;white-space:nowrap;font-size:14px}
+      .btn.primary{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#e6fff0}
+      .btn.primary.glow{box-shadow:0 0 20px rgba(34,197,94,0.5),0 0 30px rgba(34,197,94,0.3)}
+      .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+      .chip{padding:8px 12px;border-radius:999px;border:1.5px solid rgba(34,197,94,0.5);background:rgba(0,0,0,0.3);color:rgba(34,197,94,0.9);cursor:pointer;box-shadow:0 0 10px rgba(34,197,94,0.3),inset 0 1px 1px rgba(34,197,94,0.1);transition:all 0.3s ease;font-weight:500;font-size:13px;flex-shrink:0}
+      .chip.selected{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.8);color:#e6fff0;box-shadow:0 0 15px rgba(34,197,94,0.5),0 0 25px rgba(34,197,94,0.3),inset 0 1px 1px rgba(34,197,94,0.2)}
+      .post{padding:10px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);margin-bottom:10px;word-wrap:break-word}
+      .post .meta{font-size:12px;opacity:0.8}
+      .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+
+      .stories{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+      .story{display:flex;flex-direction:column;align-items:center;gap:6px}
+      .story-ring{width:58px;height:58px;border-radius:999px;padding:2px;background:radial-gradient(60% 60% at 50% 50%, rgba(34,197,94,0.5), rgba(34,197,94,0.15));box-shadow:0 0 18px rgba(34,197,94,0.3)}
+      .story-ava{width:54px;height:54px;border-radius:999px;object-fit:cover;border:2px solid rgba(0,0,0,0.4);background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:#bfffd5;font-weight:700}
+      .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:50}
+      .overlay-card{width:min(92vw,520px);max-height:86vh;overflow:auto;background:rgba(2,6,23,0.85);border:1px solid rgba(148,163,184,0.15);border-radius:12px;padding:14px}
+
+      .font-default{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+      .font-serif{font-family:Georgia,Cambria,Times New Roman,serif}
+      .font-mono{font-family:ui-monospace,SFMono-Regular,Monaco,Courier New,monospace}
+      .font-rounded{font-family:ui-rounded,SF Pro Rounded,system-ui,-apple-system}
+      .font-display{font-family:Impact,Haettenschweiler,Arial Black,sans-serif;letter-spacing:0.5px}
+
+      @media (min-width:900px){#root{align-items:center}.app{max-width:980px}}
+    </style>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      const { useState, useEffect, useRef } = React;
+
+      // KEEP YOUR KEYS (unchanged)
+      const SUPABASE_URL = "https://ddlcukufdiytyfhpynzo.supabase.co";
+      const SUPABASE_ANON_KEY = "sb_publishable_yxi2hoOXBYUhLgW2LvJUWw_O7o5T7i2";
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const MAX_INTRO_VIDEO_BYTES = 25 * 1024 * 1024;
+      const MAX_PROFILE_PHOTO_BYTES = 10 * 1024 * 1024;
+      const MAX_POST_VIDEO_BYTES = 150 * 1024 * 1024;
+      const MAX_POST_IMAGE_BYTES = 10 * 1024 * 1024;
+
+      function safeAlert(msg){try{alert(msg)}catch(e){console.error(msg)}}
+      async function uploadToBucket(file,userId,folder){
+        if(!file){console.error('No file provided');return null;}
+        console.log('🚀 Starting upload:',{userId,folder,fileName:file.name,size:file.size});
+        const ts=Date.now();
+        const safeName=(file.name||'file').replace(/[^a-zA-Z0-9._-]/g,'_');
+        const path=`${userId}/${folder}/${ts}_${safeName}`;
+        console.log('📁 Upload path:',path);
+        const { data, error } = await supabase.storage.from('media').upload(path,file,{cacheControl:'3600',upsert:false});
+        if(error){
+          console.error('❌ Upload error:',error);
+          safeAlert(`Upload failed: ${error.message||JSON.stringify(error)}`);
+          return null;
+        }
+        console.log('✅ Upload success, getting public URL...');
+        const { data: pub } = supabase.storage.from('media').getPublicUrl(path);
+        console.log('🔗 Public URL:',pub?.publicUrl);
+        return pub?.publicUrl||null;
+      }
+      function getHandleForUser(user){const email=(user?.email||"").toLowerCase();if(email==="uncleizzo@gmail.com")return"@uncleophilly";const base=email?email.split('@')[0]:'member';return'@'+base.toLowerCase()}
+      function isAdmin(user){const email=(user?.email||"").toLowerCase();return email==="uncleizzo@gmail.com"}
+      function formatDate(iso){
+        if(!iso)return'';
+        try{
+          const d=new Date(iso);
+          return d.toLocaleString(undefined,{year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+        }catch(e){return String(iso)}
+      }
+
+      function CertifiedBadge({size=20}){
+        return React.createElement('svg',{width:size,height:size,viewBox:'0 0 100 100',style:{display:'inline-block',verticalAlign:'middle',filter:'drop-shadow(0 2px 4px rgba(34,197,94,0.4))'}},
+          React.createElement('defs',null,
+            React.createElement('path',{id:'circlePath',d:'M 50 50 m -40 0 a 40 40 0 1 1 80 0 a 40 40 0 1 1 -80 0'}),
+            React.createElement('linearGradient',{id:'stampGrad',x1:'0%',y1:'0%',x2:'100%',y2:'100%'},
+              React.createElement('stop',{offset:'0%',style:{stopColor:'#22c55e',stopOpacity:1}}),
+              React.createElement('stop',{offset:'100%',style:{stopColor:'#16a34a',stopOpacity:1}})
+            )
+          ),
+          React.createElement('circle',{cx:50,cy:50,r:48,fill:'url(#stampGrad)',stroke:'#22c55e',strokeWidth:2,opacity:0.95}),
+          React.createElement('circle',{cx:50,cy:50,r:42,fill:'none',stroke:'#22c55e',strokeWidth:1,strokeDasharray:'2,3',opacity:0.6}),
+          React.createElement('text',{fontSize:9,fontWeight:'bold',fill:'white',letterSpacing:1.5},
+            React.createElement('textPath',{href:'#circlePath',startOffset:'50%',textAnchor:'middle'},'CERTIFIED • OFFICIAL')
+          ),
+          React.createElement('circle',{cx:50,cy:50,r:28,fill:'#16a34a'}),
+          React.createElement('text',{x:50,y:56,textAnchor:'middle',fontSize:36,fontWeight:'900',fill:'white',fontFamily:'Impact'},'C'),
+          React.createElement('circle',{cx:50,cy:50,r:28,fill:'none',stroke:'#22c55e',strokeWidth:1.5,opacity:0.8})
+        )
+      }
+
+      function PrivateBadge({size=20}){
+        return React.createElement('svg',{width:size,height:size,viewBox:'0 0 100 100',style:{display:'inline-block',verticalAlign:'middle',filter:'drop-shadow(0 2px 4px rgba(239,68,68,0.5))'}},
+          React.createElement('defs',null,
+            React.createElement('path',{id:'privateCirclePath',d:'M 50 50 m -40 0 a 40 40 0 1 1 80 0 a 40 40 0 1 1 -80 0'}),
+            React.createElement('linearGradient',{id:'privateStampGrad',x1:'0%',y1:'0%',x2:'100%',y2:'100%'},
+              React.createElement('stop',{offset:'0%',style:{stopColor:'#ef4444',stopOpacity:1}}),
+              React.createElement('stop',{offset:'100%',style:{stopColor:'#dc2626',stopOpacity:1}})
+            )
+          ),
+          React.createElement('circle',{cx:50,cy:50,r:48,fill:'url(#privateStampGrad)',stroke:'#ef4444',strokeWidth:2,opacity:0.95}),
+          React.createElement('circle',{cx:50,cy:50,r:42,fill:'none',stroke:'#ef4444',strokeWidth:1,strokeDasharray:'2,3',opacity:0.6}),
+          React.createElement('text',{fontSize:9,fontWeight:'bold',fill:'white',letterSpacing:1.5},
+            React.createElement('textPath',{href:'#privateCirclePath',startOffset:'50%',textAnchor:'middle'},'PRIVATE • CIRCLEZ')
+          ),
+          React.createElement('circle',{cx:50,cy:50,r:28,fill:'#dc2626'}),
+          React.createElement('text',{x:50,y:56,textAnchor:'middle',fontSize:36,fontWeight:'900',fill:'white',fontFamily:'Impact'},'P'),
+          React.createElement('circle',{cx:50,cy:50,r:28,fill:'none',stroke:'#ef4444',strokeWidth:1.5,opacity:0.8})
+        )
+      }
+
+      function LoginScreen({onSignIn}){
+        return React.createElement('div',{className:'panel panel-login'},
+          React.createElement('div',{className:'brand'},
+            React.createElement('img',{src:'cz-logo.png',alt:'CIRCLEZ',className:'brand-logo',style:{width:44,height:44}}),
+            React.createElement('div',null,
+              React.createElement('div',{className:'brand-title'},'CIRCLEZ')
+            )
+          ),
+          React.createElement('div',{style:{height:8}}),
+          React.createElement('button',{className:'btn primary',onClick:async()=>{
+            await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin}})
+          }},'Sign in with Google')
+        )
+      }
+
+      function App(){
+        const [session,setSession]=useState(null);
+        const [loading,setLoading]=useState(true);
+        const [profile,setProfile]=useState(null);
+        const [displayName,setDisplayName]=useState('');
+        const [location,setLocation]=useState('');
+        const [bio,setBio]=useState('');
+        const [fontStyle,setFontStyle]=useState('default');
+        const [uploadingPhoto,setUploadingPhoto]=useState(false);
+        const [uploadingVideo,setUploadingVideo]=useState(false);
+        const [pendingPhoto,setPendingPhoto]=useState(null);
+        const [pendingPhotoUrl,setPendingPhotoUrl]=useState(null);
+        const [editingProfile,setEditingProfile]=useState(false);
+
+        const [content,setContent]=useState('');
+        const [selectedCircles,setSelectedCircles]=useState(['Family']);
+        const [selectedMoods,setSelectedMoods]=useState([]);
+        const [feed,setFeed]=useState([]);
+        const [loadingFeed,setLoadingFeed]=useState(false);
+        const [storiesCircle,setStoriesCircle]=useState('All');
+        const [viewUserId,setViewUserId]=useState(null);
+        const [feedCircleFilter,setFeedCircleFilter]=useState(null);
+        const [storiesMembers,setStoriesMembers]=useState([]);
+        const [storyOpen,setStoryOpen]=useState(null);
+        const [storyPosts,setStoryPosts]=useState([]);
+        const [storyIndex,setStoryIndex]=useState(0);
+        const [adminOpen,setAdminOpen]=useState(false);
+        
+        const [searchEmail,setSearchEmail]=useState('');
+        const [searchResult,setSearchResult]=useState(null);
+        const [myFollowers,setMyFollowers]=useState([]);
+          const [blockedUsers,setBlockedUsers]=useState([]);
+          const [bannedUsersGlobal,setBannedUsersGlobal]=useState([]);
+        const [logoUrl,setLogoUrl]=useState('cz-logo.png');
+        const [uploadingLogo,setUploadingLogo]=useState(false);
+        const [currentView,setCurrentView]=useState('feed');
+        const [mediaGallery,setMediaGallery]=useState([]);
+        const [composeMedia,setComposeMedia]=useState([]);
+        const [composingMedia,setComposingMedia]=useState(false);
+        const [expandedPostId,setExpandedPostId]=useState(null);
+        const [postComments,setPostComments]=useState({});
+        const [postReactions,setPostReactions]=useState({});
+        const [userReactions,setUserReactions]=useState({});
+        const [commentText,setCommentText]=useState({});
+        const [messages,setMessages]=useState([]);
+        const [selectedMessenger,setSelectedMessenger]=useState(null);
+        const [messageText,setMessageText]=useState('');
+        const [dmUploading,setDmUploading]=useState(false);
+        const [conversations,setConversations]=useState([]);
+        const [cmSearch,setCmSearch]=useState('');
+        const [cmSearchResult,setCmSearchResult]=useState(null);
+        const [activeCmCall,setActiveCmCall]=useState(null);
+        const [dailyCallFrame,setDailyCallFrame]=useState(null);
+        const [deletingMedia,setDeletingMedia]=useState(null);
+        const [openMediaMenu,setOpenMediaMenu]=useState(null); // key string for 3-dots menu
+        const [termsOpen,setTermsOpen]=useState(false);
+        const [theme,setTheme]=useState(()=>(localStorage.getItem('circlez.theme')||'dark'));
+        const [handleColor,setHandleColor]=useState(()=>(localStorage.getItem('circlez.handleColor')||'#34d399'));
+        const dmFileInputRef=useRef(null);
+        const dmCameraInputRef=useRef(null);
+
+        useEffect(()=>{
+          supabase.auth.getSession().then(({data})=>{
+            setSession(data.session||null);setLoading(false);
+            if(data.session){
+              const agreed=localStorage.getItem('cz_terms_agreed')==='true';
+              setTermsOpen(!agreed);
+              loadProfile(data.session.user);loadBlockedUsers();loadBannedUsers();loadFeed();loadLogo()
+            }
+          }).catch(err=>{console.error('Session error:',err);setLoading(false)});
+          const { data: listener } = supabase.auth.onAuthStateChange((_e,sess)=>{setSession(sess);if(sess){loadProfile(sess.user);loadBlockedUsers();loadBannedUsers();loadFeed();loadLogo()}else{setProfile(null);setFeed([])}})
+          return ()=>listener.subscription.unsubscribe();
+        },[])
+
+        // Terms & Conditions modal
+        const TermsModal = ()=>termsOpen?React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'grid',placeItems:'center',zIndex:10000}},
+          React.createElement('div',{style:{width:'min(600px,90vw)',background:'#0b121f',color:'#e6eef0',border:'1px solid rgba(148,163,184,0.2)',borderRadius:12,padding:16,boxShadow:'0 12px 30px rgba(0,0,0,0.5)'}},
+            React.createElement('div',{style:{fontWeight:800,fontSize:18,marginBottom:8}},'Terms & Conditions'),
+            React.createElement('div',{className:'meta',style:{marginBottom:12}},'By using Circlez, you agree to community guidelines, respectful conduct, and our data usage for providing the service. No hate speech, harassment, or illegal content. Violations may result in restrictions.'),
+            React.createElement('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+              React.createElement('button',{className:'btn primary',onClick:()=>{localStorage.setItem('cz_terms_agreed','true');setTermsOpen(false)}},'I Agree')
+            )
+          )
+        ):null;
+
+        useEffect(()=>{if(session){loadStories(storiesCircle)}},[session,storiesCircle])
+
+        useEffect(()=>{
+          if(session&&currentView==='cm'){
+            loadConversations();
+          }
+        },[session,currentView])
+
+        async function loadProfile(user){
+          if(!user)return;
+          const { data:row, error } = await supabase.from('profiles').select('*').eq('id',user.id).maybeSingle();
+          let p = row;
+          if(!p){
+            const initial={id:user.id,handle:getHandleForUser(user),display_name:user.user_metadata?.full_name||'',bio:'',location:'',font_style:'default',username_colc:'#e5e7eb',avatar_url:null,profile_photo_:null,certified:false}
+            const ins = await supabase.from('profiles').insert(initial).select('*').maybeSingle();
+            if(ins.error)console.error('Profile insert:',ins.error);p=ins.data||null
+          }
+          if(p){setProfile(p);setDisplayName(p.display_name||'');setLocation(p.location||'');setBio(p.bio||'');setFontStyle(p.font_style||'default')}
+        }
+
+        function toggleTheme(){
+          const newTheme=theme==='dark'?'light':'dark';
+          setTheme(newTheme);
+          localStorage.setItem('circlez.theme',newTheme);
+          document.body.className=newTheme==='light'?'theme-light':'';
+        }
+
+        function changeHandleColor(color){
+          setHandleColor(color);
+          localStorage.setItem('circlez.handleColor',color);
+        }
+
+        useEffect(()=>{
+          document.body.className=theme==='light'?'theme-light':'';
+        },[theme]);
+
+        async function saveProfile(){if(!session)return;const payload={display_name:displayName||null,location:location||null,bio:bio||null,font_style:fontStyle||'default'};const { error } = await supabase.from('profiles').update(payload).eq('id',session.user.id);if(error){console.error('Save profile',error);safeAlert('Could not save profile')}else safeAlert('Saved')}
+
+        function handlePhotoSelect(e){if(!session||!e.target.files||!e.target.files[0])return;const file=e.target.files[0];if(file.size>MAX_PROFILE_PHOTO_BYTES){safeAlert('Photo must be under 10MB');return}if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}setPendingPhoto(file);setPendingPhotoUrl(URL.createObjectURL(file))}
+
+        function cancelProfilePhoto(){if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}setPendingPhoto(null);setPendingPhotoUrl(null)}
+
+        function resizeImageToSquare(file,size=256){
+          return new Promise((resolve,reject)=>{
+            const img=new Image();
+            img.onload=()=>{
+              try{
+                const canvas=document.createElement('canvas');
+                canvas.width=size;canvas.height=size;
+                const ctx=canvas.getContext('2d');
+                const iw=img.width, ih=img.height;
+                const scale=Math.max(size/iw,size/ih);
+                const sw=size/scale, sh=size/scale;
+                const sx=(iw-sw)/2, sy=(ih-sh)/2;
+                ctx.drawImage(img,sx,sy,sw,sh,0,0,size,size);
+                if(canvas.toBlob){
+                  canvas.toBlob(b=>b?resolve(b):reject(new Error('Blob failed')),'image/jpeg',0.9)
+                }else{
+                  try{
+                    const dataUrl=canvas.toDataURL('image/jpeg',0.9);
+                    const byteString=atob(dataUrl.split(',')[1]);
+                    const mimeString=dataUrl.split(',')[0].split(':')[1].split(';')[0];
+                    const ab=new ArrayBuffer(byteString.length);
+                    const ia=new Uint8Array(ab);
+                    for(let i=0;i<byteString.length;i++){ia[i]=byteString.charCodeAt(i)}
+                    resolve(new Blob([ab],{type:mimeString}))
+                  }catch(e){reject(e)}
+                }
+              }catch(err){reject(err)}
+            };
+            img.onerror=(e)=>{reject(e)};
+            img.src=URL.createObjectURL(file)
+          })
+        }
+
+        async function saveProfilePhoto(){
+          if(!session||!pendingPhoto)return;
+          try{
+            setUploadingPhoto(true);
+            const resized=await resizeImageToSquare(pendingPhoto,256);
+            const resizedFile=new File([resized],'avatar.jpg',{type:'image/jpeg'});
+            const url=await uploadToBucket(resizedFile,session.user.id,'photos');
+            if(!url){
+              safeAlert('Upload failed. See console for details.');
+              return;
+            }
+            const { error } = await supabase.from('profiles').update({profile_photo_:url}).eq('id',session.user.id);
+            if(error){
+              console.error('Photo save error',error);
+              safeAlert(`Failed to save photo: ${error.message||'check RLS policy on profiles'}`)
+            }else{
+              setProfile(prev=>prev?{...prev,profile_photo_:url}:prev);
+              await new Promise(r=>setTimeout(r,200));
+              const { data: fresh, error: selErr } = await supabase.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+              if(selErr){ console.error('Profile reload error',selErr); }
+              if(fresh){ setProfile(fresh); }
+              safeAlert('Photo saved!')
+            }
+          }catch(err){
+            console.error('Resize/upload error',err);
+            safeAlert('Could not process photo')
+          }finally{
+            if(pendingPhotoUrl){URL.revokeObjectURL(pendingPhotoUrl)}
+            setPendingPhoto(null);setPendingPhotoUrl(null);setUploadingPhoto(false)
+          }
+        }
+
+        async function handleVideoUpload(e){if(!session||!e.target.files||!e.target.files[0])return;const file=e.target.files[0];if(file.size>MAX_INTRO_VIDEO_BYTES){safeAlert('Video must be under 25MB');return}const video=document.createElement('video');video.preload='metadata';video.onloadedmetadata=async()=>{window.URL.revokeObjectURL(video.src);if(video.duration>5.5){safeAlert('Video must be 5 seconds or less');return}setUploadingVideo(true);const url=await uploadToBucket(file,session.user.id,'intro-videos');if(url){const{error}=await supabase.from('profiles').update({avatar_url:url}).eq('id',session.user.id);if(!error){await loadProfile(session.user);safeAlert('Intro video uploaded!')}else{console.error('Video save error',error);safeAlert('Failed to save video')}}setUploadingVideo(false)};video.src=URL.createObjectURL(file)}
+
+        function toggle(setter,arr,label){setter(prev=>prev.includes(label)?prev.filter(x=>x!==label):prev.concat(label))}
+
+        async function ensureInTheirCircle(targetUserId){
+          if(!session||!targetUserId)return false;
+          if(targetUserId===session.user.id)return true;
+          if(bannedUsersGlobal.includes(targetUserId)){safeAlert('User is banned');return false;}
+          const { data, error } = await supabase
+            .from('relationships')
+            .select('circle')
+            .eq('owner_id',targetUserId)
+            .eq('member_id',session.user.id)
+            .maybeSingle();
+          if(error){console.error('Circle check error',error);safeAlert('Could not verify circle');return false;}
+          if(!data||!data.circle){safeAlert('You need to be in their circle to CM');return false;}
+          if(data.circle==='BLOCKED'){safeAlert('You are blocked by this user');return false;}
+          return true;
+        }
+        function containsHateSpeech(text){
+          if(!text)return false;
+          const lowerText=text.toLowerCase();
+          const hateKeywords=['hate','kill','nazi','hitler','holocaust denial','antisemit','jew hatred','racial slur','kike','nigger','faggot','terrorist','genocide support','ethnic cleansing','white supremac','kkk','burn them','gas them','subhuman'];
+          return hateKeywords.some(keyword=>lowerText.includes(keyword));
+        }
+
+        async function blockUser(userId){
+          if(!session||!userId)return;
+          const{error}=await supabase.from('relationships').upsert({owner_id:session.user.id,member_id:userId,circle:'BLOCKED'},{onConflict:'owner_id,member_id'});
+          if(error){console.error('Block error',error);safeAlert('Failed to block user')}else{setBlockedUsers(prev=>[...prev,userId]);safeAlert('User blocked');await loadFeed();await loadStories(storiesCircle)}
+        }
+
+        async function unblockUser(userId){
+          if(!session||!userId)return;
+          const{error}=await supabase.from('relationships').delete().eq('owner_id',session.user.id).eq('member_id',userId).eq('circle','BLOCKED');
+          if(error){console.error('Unblock error',error);safeAlert('Failed to unblock user')}else{setBlockedUsers(prev=>prev.filter(id=>id!==userId));safeAlert('User unblocked');await loadFeed();await loadStories(storiesCircle)}
+        }
+
+        async function loadBlockedUsers(){
+          if(!session)return;
+          const{data}=await supabase.from('relationships').select('member_id').eq('owner_id',session.user.id).eq('circle','BLOCKED');
+          setBlockedUsers((data||[]).map(r=>r.member_id));
+        }
+
+        async function loadBannedUsers(){
+          try{
+            const { data, error } = await supabase.from('profiles').select('id').eq('banned',true);
+            if(error){
+              // Missing column or other issue; keep app running
+              if((error.message||'').toLowerCase().includes('banned')){
+                console.warn('Banned column missing; skipping banned load');
+              }else{
+                console.warn('Banned load error',error);
+              }
+              setBannedUsersGlobal([]);
+              return;
+            }
+            setBannedUsersGlobal((data||[]).map(r=>r.id));
+          }catch(e){console.error('Banned load exception',e);setBannedUsersGlobal([]);}
+        }
+
+        async function banUser(userId){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          try{
+            const { error } = await supabase.from('profiles').update({banned:true}).eq('id',userId);
+            if(error){
+              if((error.message||'').toLowerCase().includes('banned')){
+                safeAlert("'banned' column is missing in profiles. Add it with: ALTER TABLE profiles ADD COLUMN banned boolean DEFAULT false;");
+              }else{
+                safeAlert('Failed to ban user');
+              }
+              console.error('Ban error',error);
+              return;
+            }
+            safeAlert('User banned globally');
+            setSearchResult(prev=>prev&&prev.id===userId?{...prev,banned:true}:prev);
+            await loadBannedUsers();
+            await loadFeed();
+          }catch(e){console.error('Ban exception',e);safeAlert('Could not ban user');}
+        }
+
+        async function unbanUser(userId){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          try{
+            const { error } = await supabase.from('profiles').update({banned:false}).eq('id',userId);
+            if(error){
+              if((error.message||'').toLowerCase().includes('banned')){
+                safeAlert("'banned' column is missing in profiles. Add it with: ALTER TABLE profiles ADD COLUMN banned boolean DEFAULT false;");
+              }else{
+                safeAlert('Failed to unban user');
+              }
+              console.error('Unban error',error);
+              return;
+            }
+            safeAlert('User unbanned');
+            setSearchResult(prev=>prev&&prev.id===userId?{...prev,banned:false}:prev);
+            await loadBannedUsers();
+            await loadFeed();
+          }catch(e){console.error('Unban exception',e);safeAlert('Could not unban user');}
+        }
+
+        async function loadFeed(){
+          setLoadingFeed(true);
+          if(!session){setLoadingFeed(false);return}
+          const currentUserId = session.user.id;
+          console.log('📥 Loading feed for user:',currentUserId);
+          
+          // Load all posts with author profile info; if the DB is missing newer columns, fall back gracefully
+          const baseSelect='id,content,created_at,author_id,author_handle,circlez,mood,media_urls,profiles!posts_author_id_fkey(certified)';
+          let selectCols=baseSelect;
+          let res = await supabase.from('posts').select(selectCols).order('created_at',{ascending:false}).limit(50);
+          if(res.error){
+            const msg=(res.error.message||'').toLowerCase();
+            const missingColumn = msg.includes('column') && msg.includes('does not exist');
+            const relError = msg.includes('relation')||msg.includes('foreign key')||msg.includes('join')||msg.includes('unknown relationship');
+            console.warn('⚠️ Feed query initial error, retrying with reduced select',res.error);
+            selectCols = missingColumn ? 'id,content,created_at,author_id,author_handle' : relError ? 'id,content,created_at,author_id,author_handle,circlez,mood,media_urls' : 'id,content,created_at,author_id,author_handle';
+            res = await supabase.from('posts').select(selectCols).order('created_at',{ascending:false}).limit(50);
+          }
+          if(res.error){
+            console.warn('⚠️ Feed retry failed, trying bare minimum columns',res.error);
+            selectCols='id,content,created_at';
+            res = await supabase.from('posts').select(selectCols).order('created_at',{ascending:false}).limit(50);
+          }
+          if(res.error){
+            console.error('❌ Feed error (after all retries):',res.error);
+            safeAlert('Feed unavailable: '+(res.error.message||'check posts columns/FK/policies'));
+            setLoadingFeed(false);
+            return;
+          }
+          let allPosts = res.data||[];
+          if(viewUserId){allPosts=allPosts.filter(p=>p.author_id===viewUserId)}
+          console.log('📊 All posts loaded:',allPosts.length,allPosts);
+          
+          // Load viewer's relationships (which circles others assigned me to)
+          const { data: myRelationships } = await supabase.from('relationships').select('owner_id,circle').eq('member_id',currentUserId);
+          const circleMap = {};
+          (myRelationships||[]).forEach(r => circleMap[r.owner_id] = r.circle);
+          console.log('🔗 Circle assignments:',circleMap);
+          
+          // Filter posts based on circle visibility plus blocks/bans
+          let visiblePosts = allPosts.filter(p => {
+            if(p.author_id === currentUserId) return true; // Always see your own posts
+            if(blockedUsers.includes(p.author_id)) return false; // Hide blocked users (personal)
+            if(bannedUsersGlobal.includes(p.author_id)) return false; // Hide globally banned users
+            if(containsHateSpeech(p.content)) return false; // Block hate speech
+            const assignedCircle = circleMap[p.author_id];
+            if(!assignedCircle) return true; // No relationship = public view (show all for now)
+            const postCircles = p.circlez || [];
+            return postCircles.includes(assignedCircle); // Only show if assigned circle matches post's circles
+          });
+          if(feedCircleFilter){visiblePosts=visiblePosts.filter(p=>(p.circlez||[]).includes(feedCircleFilter))}
+          
+          console.log('✅ Visible posts:',visiblePosts.length,visiblePosts);
+          setFeed(visiblePosts.map(p=>({id:p.id,content:p.content||'',created_at:p.created_at,circlez:p.circlez||[],mood:p.mood||[],author_id:p.author_id,author_handle:p.author_handle||'',certified:p.profiles?.certified||false,media_urls:p.media_urls||[]})))
+          setLoadingFeed(false)
+        }
+
+        async function loadStories(circle){
+          if(!session)return;
+          if(circle==='All'){
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('id,handle,display_name,profile_photo_')
+              .neq('id',session.user.id)
+              .order('display_name',{ascending:true})
+              .limit(500);
+            if(error){console.error('Stories load error',error);setStoriesMembers([]);return}
+            setStoriesMembers((data||[]).filter(p=>!bannedUsersGlobal.includes(p.id)).map(p=>({id:p.id,handle:p.handle||'@member',display_name:p.display_name||null,photo:p.profile_photo_||null})));
+            return;
+          }
+          const { data, error } = await supabase
+            .from('relationships')
+            .select('member_id,circle')
+            .eq('owner_id',session.user.id)
+            .eq('circle',circle);
+          if(error){console.error('Stories load error',error);setStoriesMembers([]);return}
+          const ids=(data||[]).map(r=>r.member_id).filter(Boolean);
+          if(ids.length===0){setStoriesMembers([]);return}
+          const { data: profs, error: pErr } = await supabase.from('profiles').select('id,handle,display_name,profile_photo_').in('id',ids);
+          if(pErr){console.error('Stories profile load error',pErr);setStoriesMembers([]);return}
+          const map={};(profs||[]).forEach(p=>map[p.id]=p);
+          setStoriesMembers(ids.filter(id=>!bannedUsersGlobal.includes(id)).map(id=>({
+            id,
+            handle:map[id]?.handle||'@member',
+            display_name:map[id]?.display_name||null,
+            photo:map[id]?.profile_photo_||null
+          })));
+        }
+
+        async function openStory(member){
+          setStoryOpen(member);setStoryIndex(0);setStoryPosts([]);
+          const { data, error } = await supabase
+            .from('posts')
+            .select('id,content,created_at,media_urls')
+            .eq('author_id',member.id)
+            .order('created_at',{ascending:false})
+            .limit(10);
+          if(error){console.error('Load story posts',error);return}
+          setStoryPosts(data||[]);
+        }
+        function closeStory(){setStoryOpen(null);setStoryPosts([]);setStoryIndex(0)}
+        function nextStory(){setStoryIndex(i=>Math.min(i+1,Math.max(0,storyPosts.length-1)))}
+        function prevStory(){setStoryIndex(i=>Math.max(i-1,0))}
+        function replyToStory(){
+          if(!session||!storyOpen)return;
+          setCurrentView('cm');
+          setSelectedMessenger(storyOpen.id);
+          loadMessages(storyOpen.id);
+          setMessageText('');
+          closeStory();
+        }
+
+        async function loadPostComments(postId){
+          const { data, error } = await supabase
+            .from('comments')
+            .select('id,content,created_at,author_id,profiles!comments_author_id_fkey(handle,display_name)')
+            .eq('post_id',postId)
+            .order('created_at',{ascending:false});
+          if(!error){setPostComments(prev=>({...prev,[postId]:data||[]}))}
+        }
+
+        async function addComment(postId){
+          if(!session||!commentText[postId]?.trim())return;
+          const { error } = await supabase.from('comments').insert({
+            post_id:postId,
+            author_id:session.user.id,
+            content:commentText[postId]
+          });
+          if(!error){
+            setCommentText(prev=>({...prev,[postId]:''}));
+            await loadPostComments(postId);
+          }
+        }
+
+        async function loadPostReactions(postId){
+          const { data, error } = await supabase
+            .from('reactions')
+            .select('id,user_id,reaction')
+            .eq('post_id',postId);
+          if(!error){
+            const counts = {like:0};
+            const userReact = {};
+            (data||[]).forEach(r=>{
+              counts[r.reaction]=(counts[r.reaction]||0)+1;
+              if(r.user_id===session?.user?.id) userReact[postId]=r.reaction;
+            });
+            setPostReactions(prev=>({...prev,[postId]:counts}));
+            setUserReactions(prev=>({...prev,...userReact}));
+          }
+        }
+
+        async function toggleReaction(postId){
+          if(!session)return;
+          const existing = userReactions[postId];
+          if(existing){
+            await supabase.from('reactions').delete().eq('post_id',postId).eq('user_id',session.user.id);
+            setUserReactions(prev=>{const n={...prev};delete n[postId];return n});
+          }else{
+            await supabase.from('reactions').insert({post_id:postId,user_id:session.user.id,reaction:'like'});
+            setUserReactions(prev=>({...prev,[postId]:'like'}));
+          }
+          await loadPostReactions(postId);
+        }
+
+        async function sendMessage(recipientId, mediaUrl=null){
+          if(!session||!recipientId){console.error('sendMessage: missing session or recipientId',{session:!!session,recipientId});return;}
+          const allowed=await ensureInTheirCircle(recipientId);
+          if(!allowed)return;
+          const hasText = messageText.trim().length>0;
+          if(!hasText && !mediaUrl){console.log('sendMessage: no text or media');return;}
+          const payload={
+            sender_id:session.user.id,
+            recipient_id:recipientId,
+            content:hasText?messageText.trim():null,
+            media_url:mediaUrl
+          };
+          console.log('Sending message:',payload);
+          const { data, error } = await supabase.from('messages').insert(payload).select();
+          if(error){
+            console.error('Send message error:',error);
+            safeAlert('Could not send: '+error.message);
+            return;
+          }
+          console.log('Message sent:',data);
+          setMessageText('');
+          await loadMessages(recipientId);
+        }
+
+        async function handleDmFileSelect(e){
+          if(!session||!selectedMessenger)return;
+          const file=e.target.files&&e.target.files[0];
+          if(!file){return;}
+          const isVideo=file.type?.startsWith('video');
+          const maxBytes=isVideo?MAX_POST_VIDEO_BYTES:MAX_POST_IMAGE_BYTES;
+          if(file.size>maxBytes){safeAlert(`File must be under ${Math.round(maxBytes/1024/1024)}MB`);e.target.value='';return;}
+          setDmUploading(true);
+          try{
+            const url=await uploadToBucket(file,session.user.id,'messages');
+            if(url){await sendMessage(selectedMessenger,url);}
+          }catch(err){console.error('DM upload error',err);safeAlert('Could not send media');}
+          setDmUploading(false);
+          e.target.value='';
+        }
+
+        async function loadMessages(recipientId){
+          if(!session)return;
+          const { data, error } = await supabase
+            .from('messages')
+            .select('id,sender_id,content,media_url,read_at,created_at,profiles!messages_sender_id_fkey(handle)')
+            .or(`and(sender_id.eq.${session.user.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${session.user.id})`)
+            .order('created_at',{ascending:true});
+          if(!error){
+            setMessages(data||[]);
+            await markThreadRead(recipientId);
+          }
+        }
+
+        async function markThreadRead(peerId){
+          try{
+            await supabase
+              .from('messages')
+              .update({read_at:new Date().toISOString()})
+              .eq('recipient_id',session.user.id)
+              .eq('sender_id',peerId)
+              .is('read_at',null);
+          }catch(e){console.error('markThreadRead error',e)}
+        }
+
+        function getLastOutgoingReadAt(){
+          if(!session||!messages||messages.length===0)return null;
+          for(let i=messages.length-1;i>=0;i--){
+            const m=messages[i];
+            if(m.sender_id===session.user.id){return m.read_at;}
+          }
+          return null;
+        }
+
+        async function searchCmUser(){
+          if(!cmSearch.trim())return;
+          const q=cmSearch.trim();
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id,handle,display_name,profile_photo_')
+            .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
+            .neq('id',session.user.id)
+            .limit(5);
+          if(error){
+            if(error.code==='PGRST116'){safeAlert('Too many matches, refine search');return;}
+            console.error('CM search error',q,error);
+            safeAlert(error.message||'Could not search right now');
+            return;
+          }
+          const match=Array.isArray(data)?data[0]:null;
+          if(match && bannedUsersGlobal.includes(match.id)){safeAlert('User is banned');setCmSearchResult(null);return;}
+          setCmSearchResult(match||null);
+        }
+
+        async function startCmVideoCall(recipientId, isPrivate=false){
+          if(!session||!recipientId)return;
+          const allowed=await ensureInTheirCircle(recipientId);
+          if(!allowed)return;
+          try{
+            const roomName=`cm-${session.user.id}-${recipientId}-${Date.now()}`;
+            const roomUrl=`https://circlez.daily.co/${roomName}`;
+            const callFrame=window.DailyIframe.createFrame({iframeStyle:{position:'fixed',top:0,left:0,width:'100%',height:'100%',zIndex:9999,background:'#000'}});
+            await callFrame.join({url:roomUrl});
+            setDailyCallFrame(callFrame);
+            setActiveCmCall({recipientId,isPrivate});
+            callFrame.on('left-meeting',()=>{callFrame.destroy();setDailyCallFrame(null);setActiveCmCall(null);});
+            const notif={sender_id:session.user.id,recipient_id:recipientId,content:`📹 ${isPrivate?'Private ':''}Video call: ${roomUrl}`,media_url:null};
+            await supabase.from('messages').insert(notif);
+          }catch(err){console.error('Start CM call error',err);safeAlert('Could not start video call');}
+        }
+
+        function endCmCall(){
+          if(dailyCallFrame){dailyCallFrame.destroy();setDailyCallFrame(null);}
+          setActiveCmCall(null);
+        }
+
+        async function loadConversations(){
+          if(!session)return;
+          const uid=session.user.id;
+          const { data, error } = await supabase
+            .from('messages')
+            .select('sender_id,recipient_id,created_at')
+            .or(`sender_id.eq.${uid},recipient_id.eq.${uid}`)
+            .order('created_at',{ascending:false})
+            .limit(500);
+          if(error){console.error('Load conversations',error);return}
+          const peers=new Set();
+          (data||[]).forEach(m=>{const other=m.sender_id===uid?m.recipient_id:m.sender_id;peers.add(other)});
+          const ids=[...peers];
+          if(ids.length===0){setConversations([]);return}
+          const { data: profs, error: profErr } = await supabase.from('profiles').select('id,handle,display_name,profile_photo_').in('id',ids);
+          if(profErr){console.error('Load conversation profiles',profErr);setConversations(ids.map(id=>({id,profile:{id,handle:'@member'}})));return}
+          const map={};(profs||[]).forEach(p=>map[p.id]=p);
+          setConversations(ids.map(id=>({id,profile:map[id]||{id,handle:'@member'}})));
+        }
+
+        async function post(){
+          if(!session||(!content.trim()&&composeMedia.length===0))return;
+          setComposingMedia(true);
+          const user=session.user;
+          const mediaUrls=[];
+          
+          // Upload media files
+          for(const mediaItem of composeMedia){
+            try{
+              const timestamp=Date.now();
+              const random=Math.random().toString(36).slice(2);
+              const ext=mediaItem.type==='video'?'.mp4':'.jpg';
+              const filename=`${user.id}_${timestamp}_${random}${ext}`;
+              const path=`posts/${filename}`;
+              console.log('🚀 Uploading media:',{path,size:mediaItem.file.size,type:mediaItem.type});
+              const { data, error } = await supabase.storage.from('media').upload(path,mediaItem.file,{upsert:false});
+              if(error){console.error('❌ Media upload error:',error);safeAlert('Failed to upload media: '+error.message);continue}
+              console.log('✅ Media uploaded:',data);
+              const urlObj=supabase.storage.from('media').getPublicUrl(path);
+              const url=urlObj.data?.publicUrl;
+              if(url){
+                console.log('🔗 Media URL:',url);
+                mediaUrls.push(url);
+              }else{
+                console.error('❌ Failed to get public URL');
+              }
+            }catch(err){console.error('❌ Upload error:',err);safeAlert('Error uploading media')}
+          }
+          
+          const payload={content:content.trim(),author_id:user.id,author_handle:(profile?.handle||getHandleForUser(user)),circlez:selectedCircles,mood:selectedMoods,media_urls:mediaUrls.length>0?mediaUrls:null};
+          console.log('📝 Posting with payload:',payload);
+          const { error } = await supabase.from('posts').insert(payload);
+          if(error){console.error('❌ Post error',error);safeAlert('Could not post: '+error.message);setComposingMedia(false);return}
+          console.log('✅ Post created successfully');
+          setContent('');setSelectedMoods([]);setComposeMedia([]);setComposingMedia(false);
+          console.log('⏳ Refreshing feed...');
+          await new Promise(r=>setTimeout(r,500));
+          await loadFeed();
+          console.log('✅ Feed refreshed');
+          safeAlert('Posted!');
+        }
+
+        function handleComposeMediaSelect(e){
+          if(!e.target.files)return;
+          const newMedia=Array.from(e.target.files).map(file=>{
+            const isVideo=file.type.startsWith('video/');
+            const isImage=file.type.startsWith('image/');
+            if(!isVideo&&!isImage){safeAlert('Please select an image or video');return null}
+            const maxSize=isVideo?MAX_POST_VIDEO_BYTES:MAX_POST_IMAGE_BYTES;
+            if(file.size>maxSize){
+              const maxMB=Math.floor(maxSize/(1024*1024));
+              const fileMB=(file.size/(1024*1024)).toFixed(1);
+              safeAlert(`File too large: ${fileMB}MB (max ${maxMB}MB for ${isVideo?'videos':'images'})`);
+              return null
+            }
+            return{file,url:URL.createObjectURL(file),type:isVideo?'video':'image'};
+          }).filter(Boolean);
+          setComposeMedia(prev=>[...prev,...newMedia]);
+        }
+
+        function removeComposeMedia(idx){
+          setComposeMedia(prev=>prev.filter((_,i)=>i!==idx));
+        }
+
+        async function searchUser(){
+          if(!searchEmail.trim())return;
+          const q=searchEmail.trim();
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id,handle,display_name,certified')
+            .or(`handle.ilike.%${q}%,display_name.ilike.%${q}%`)
+            .limit(5);
+          if(error){
+            if(error.code==='PGRST116'){safeAlert('Too many matches, refine search');return;}
+            console.error('Search user error',q,error);
+            safeAlert(error.message||'Could not search right now');
+            return;
+          }
+          const match=Array.isArray(data)?data[0]:null;
+          setSearchResult(match||null);
+        }
+
+        async function assignCircle(memberId,circle){
+          if(!session)return;
+          const payload = {owner_id:session.user.id,member_id:memberId,circle:circle};
+          const { error } = await supabase.from('relationships').upsert(payload,{onConflict:'owner_id,member_id'});
+          if(error){console.error('Assign error',error);safeAlert('Could not assign circle')}
+          else{safeAlert('Circle assigned!');loadMyFollowers()}
+        }
+
+        async function toggleCertified(userId,currentStatus){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          const newStatus = !currentStatus;
+          const { error } = await supabase.from('profiles').update({certified:newStatus}).eq('id',userId);
+          if(error){console.error('Certify error',error);safeAlert('Failed to update certified status')}
+          else{safeAlert(newStatus?'User certified!':'Certification removed');await searchUser()}
+        }
+
+        async function loadLogo(){
+          try{
+            const url = supabase.storage.from('media').getPublicUrl('cz-logo.png').data.publicUrl+'?t='+Date.now();
+            console.log('Logo URL:',url);
+            setLogoUrl(url);
+          }catch(err){console.error('Logo load error:',err)}
+        }
+
+        async function handleLogoUpload(e){
+          if(!session||!isAdmin(session.user)){safeAlert('Admin only');return}
+          if(!e.target.files||!e.target.files[0])return;
+          const file = e.target.files[0];
+          if(!file.type.startsWith('image/')){safeAlert('Please upload an image');return}
+          try{
+            setUploadingLogo(true);
+            const path = 'cz-logo.png';
+            const { error } = await supabase.storage.from('media').upload(path, file, {upsert:true});
+            if(error){console.error('Logo upload error:',error);safeAlert('Failed to upload: '+error.message)}
+            else{
+              const url = supabase.storage.from('media').getPublicUrl(path).data.publicUrl+'?t='+Date.now();
+              setLogoUrl(url);
+              safeAlert('Logo updated!');
+            }
+          }catch(err){
+            console.error('Logo error',err);
+            safeAlert('Could not upload logo');
+          }finally{
+            setUploadingLogo(false);
+          }
+        }
+
+        async function loadMyFollowers(){
+          if(!session)return;
+          const { data, error } = await supabase.from('relationships').select('member_id,circle').eq('owner_id',session.user.id);
+          if(error){console.error('Followers load error',error);setMyFollowers([]);return}
+          const ids=(data||[]).map(r=>r.member_id).filter(Boolean);
+          const { data: profs, error: pErr } = ids.length>0?await supabase.from('profiles').select('id,handle,display_name').in('id',ids):{data:[],error:null};
+          if(pErr){console.error('Follower profile load error',pErr);setMyFollowers(data||[]);return}
+          const map={};(profs||[]).forEach(p=>map[p.id]=p);
+          setMyFollowers((data||[]).map(r=>({
+            member_id:r.member_id,
+            circle:r.circle,
+            profiles:map[r.member_id]||null
+          })));
+        }
+
+        async function loadMediaGallery(){
+          if(!session)return;
+          const { data, error } = await supabase
+            .from('posts')
+            .select('id,content,created_at,media_urls')
+            .eq('author_id',session.user.id)
+            .order('created_at',{ascending:false})
+            .limit(100);
+          if(error){console.error('Load media gallery',error);return}
+          const items = [];
+          (data||[]).forEach(post=>{
+            if(post.media_urls && Array.isArray(post.media_urls)){
+              post.media_urls.forEach(url=>{
+                if(url){
+                  items.push({id:post.id,url:url,content:post.content,created_at:post.created_at,type:url.includes('.mp4')||url.includes('.webm')||url.includes('video')?'video':'image'});
+                }
+              });
+            }
+          });
+          setMediaGallery(items);
+        }
+
+        function getBucketPathFromUrl(u){
+          try{
+            if(!u)return null;
+            const pub = '/storage/v1/object/public/media/';
+            if(u.includes(pub)) return u.split(pub)[1].split('?')[0];
+            const sign = '/object/sign/media/';
+            if(u.includes(sign)) return u.split(sign)[1].split('?')[0];
+            const idx=u.indexOf('/media/');
+            if(idx>=0) return u.slice(idx+7).split('?')[0];
+            return null;
+          }catch(_e){return null}
+        }
+
+        async function deleteMedia(postId,url){
+          if(!session||!url||!postId)return;
+          const canProceed = window.confirm('Delete this media?');
+          if(!canProceed)return;
+          setDeletingMedia(url);
+          try{
+            const { data: post, error: selErr } = await supabase.from('posts').select('author_id,media_urls').eq('id',postId).maybeSingle();
+            if(selErr||!post){ console.error('Load post for delete',selErr); safeAlert('Could not load post'); return; }
+            if(post.author_id!==session.user.id && !isAdmin(session.user)){ safeAlert('You can only delete your own media'); return; }
+            const newUrls = (post.media_urls||[]).filter(u=>u!==url);
+            const { error: updErr } = await supabase.from('posts').update({ media_urls: newUrls.length>0?newUrls:null }).eq('id',postId);
+            if(updErr){ console.error('Update post media_urls error',updErr); safeAlert('Failed to update post'); return; }
+            const path = getBucketPathFromUrl(url);
+            if(path){
+              const { error: delErr } = await supabase.storage.from('media').remove([path]);
+              if(delErr){ console.warn('Storage delete warning',delErr); }
+            }
+            await loadFeed();
+            await loadMediaGallery();
+            safeAlert('Media deleted');
+          }catch(err){ console.error('Delete media error',err); safeAlert('Could not delete media'); }
+          finally{ setDeletingMedia(null); }
+        }
+
+        async function logout(){
+          try{await supabase.auth.signOut({ scope:'global' });}
+          catch(e){console.error('Sign out error:',e)}
+          try{
+            setSession(null);setProfile(null);setFeed([]);
+            const target = window.location.origin + '/';
+            if(window.location.href !== target){
+              window.location.replace(target);
+            }else{
+              window.location.reload();
+            }
+          }catch(err){
+            console.error('Logout redirect error:',err);
+            // Last-resort hard nav to root (fixes broken /legacy.html links on prod)
+            window.location.href = '/';
+          }
+        }
+
+        if(loading)return React.createElement('div',{className:'panel'},'Loading...');
+        if(!session)return React.createElement(LoginScreen,null)
+
+        const handle = profile?.handle || getHandleForUser(session.user);
+        const circleOptions=['Family','Close Friends','Work','Community','Fans / Public','Private CM'];
+        const moodOptions=['Laugh','Learn','Music','Peace','Motivation'];
+        const fontOptions=[{value:'default',label:'Default'},{value:'serif',label:'Serif'},{value:'mono',label:'Mono'},{value:'rounded',label:'Rounded'},{value:'display',label:'Display'}];
+
+        return React.createElement('div',{className:'app font-'+fontStyle+' theme-'+theme},
+          React.createElement(TermsModal,null),
+          React.createElement('div',{className:'brand'},
+            React.createElement('img',{src:logoUrl,alt:'CIRCLEZ',className:'brand-logo',onError:e=>{e.target.style.display='none'}}),
+            React.createElement('div',{className:'brand-title'},'CIRCLEZ'),
+            React.createElement('button',{className:'btn',onClick:toggleTheme,style:{marginLeft:'auto'}},theme==='dark'?'☀️':'🌙')
+          ),
+
+          React.createElement('div',{className:'panel'},
+            React.createElement('div',{className:'row',style:{marginBottom:8}},
+              React.createElement('div',{style:{fontWeight:700}},'Stories'),
+              React.createElement('div',{className:'chips'},['All','Family','Close Friends','Work','Community','Fans / Public'].map(label=>React.createElement('button',{key:label,className:'chip'+(storiesCircle===label?' selected':''),onClick:()=>setStoriesCircle(label)},label)))
+            ),
+            React.createElement('div',{className:'stories'},
+              storiesMembers.length===0?React.createElement('div',{className:'meta'},'No people in this circle yet.'):
+              storiesMembers.map(m=>React.createElement('div',{key:m.id,className:'story'},
+                React.createElement('div',{className:'story-ring',style:{boxShadow:'0 0 14px rgba(34,197,94,0.6)'}},
+                  m.photo?React.createElement('img',{src:m.photo,className:'story-ava',onClick:()=>openStory(m)}):React.createElement('div',{className:'story-ava',onClick:()=>openStory(m)},(m.handle||'@u')[1]?.toUpperCase()||'U')
+                ),
+                React.createElement('div',{style:{fontSize:12,opacity:0.9,maxWidth:70,textAlign:'center'}},(m.display_name||m.handle).replace('@',''))
+              ))
+            )
+          ),
+
+          storyOpen?React.createElement('div',{className:'overlay',onClick:closeStory},
+            React.createElement('div',{className:'overlay-card',onClick:e=>e.stopPropagation()},
+              React.createElement('div',{className:'row',style:{marginBottom:8,alignItems:'center',gap:6}},
+                React.createElement('div',{style:{fontWeight:700}},storyOpen.display_name||storyOpen.handle),
+                React.createElement('div',{style:{marginLeft:'auto',display:'flex',gap:6,flexWrap:'wrap'}},
+                  React.createElement('button',{className:'btn',onClick:prevStory},'Prev'),
+                  React.createElement('button',{className:'btn',onClick:nextStory},'Next'),
+                  React.createElement('button',{className:'btn primary',onClick:replyToStory},'Reply'),
+                  React.createElement('button',{className:'btn',onClick:closeStory},'Close')
+                )
+              ),
+              storyPosts.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
+              React.createElement('div',null,
+                React.createElement('div',{className:'meta'},new Date(storyPosts[storyIndex]?.created_at||Date.now()).toLocaleString()),
+                React.createElement('div',{style:{marginTop:10,fontSize:18,lineHeight:1.4}},storyPosts[storyIndex]?.content||''),
+                Array.isArray(storyPosts[storyIndex]?.media_urls)&&storyPosts[storyIndex].media_urls.length>0?
+                  React.createElement('div',{style:{marginTop:10,display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:10}},
+                    storyPosts[storyIndex].media_urls.map((url,idx)=>React.createElement('div',{key:url+idx,style:{padding:6,borderRadius:10,background:'rgba(34,197,94,0.12)',border:'1px solid rgba(34,197,94,0.5)',boxShadow:'0 0 18px rgba(34,197,94,0.35)'}},
+                      url.includes('.mp4')||url.includes('video')?
+                        React.createElement('video',{src:url,style:{width:'100%',borderRadius:6},controls:true}):
+                        React.createElement('img',{src:url,style:{width:'100%',borderRadius:6,display:'block'}})
+                    ))
+                  )
+                :null
+              )
+            )
+          ):null,
+          React.createElement('div',{className:'panel'},
+            React.createElement('div',{className:'row',style:{alignItems:'center',marginBottom:8}},
+              (pendingPhotoUrl||profile?.profile_photo_)?
+                React.createElement('img',{src:pendingPhotoUrl||profile.profile_photo_,style:{width:50,height:50,borderRadius:999,objectFit:'cover',border:'2px solid rgba(34,197,94,0.5)',marginRight:10}}):
+                React.createElement('div',{style:{width:50,height:50,borderRadius:999,background:'rgba(34,197,94,0.15)',border:'2px solid rgba(34,197,94,0.5)',marginRight:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'rgba(34,197,94,0.9)'}},handle?handle[1].toUpperCase():'?'),
+              React.createElement('div',{style:{flex:1,minWidth:0}},React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6,color:handleColor}} , handle,profile?.certified?React.createElement(CertifiedBadge,{size:20}):null))
+            ),
+            React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},
+              React.createElement('button',{className:'btn',onClick:()=>setEditingProfile(!editingProfile)},editingProfile?'Cancel':'Edit Profile'),
+              React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()}},'Media'),
+              React.createElement('button',{className:'btn',onClick:logout},'Log out')
+            ),
+            React.createElement('div',{style:{height:8}}),
+            profile?.avatar_url?React.createElement('div',{style:{marginBottom:8}},React.createElement('video',{src:profile.avatar_url,controls:true,style:{width:'100%',maxWidth:300,borderRadius:8,border:'2px solid rgba(34,197,94,0.5)'}})):null,
+            !editingProfile?React.createElement('div',null,
+              React.createElement('div',{style:{marginTop:8}},displayName?React.createElement('div',{style:{marginBottom:4}},displayName):null),
+              React.createElement('div',{style:{marginTop:4,opacity:0.8}},location||''),
+              React.createElement('div',{style:{marginTop:8}},bio||'')
+            ):React.createElement('div',null,
+              React.createElement('input',{id:'photoInput',type:'file',accept:'image/*',capture:'user',onChange:handlePhotoSelect,style:{display:'none'}}),
+              React.createElement('label',{htmlFor:'photoInput',className:'btn',style:{cursor:'pointer'}},pendingPhoto?'Choose Different Photo':'Choose Profile Photo'),
+              pendingPhotoUrl?React.createElement('div',{className:'row',style:{marginTop:8,gap:10,alignItems:'center'}},
+                React.createElement('img',{src:pendingPhotoUrl,style:{width:70,height:70,borderRadius:999,objectFit:'cover',border:'2px solid rgba(34,197,94,0.5)'}}),
+                React.createElement('div',{className:'row',style:{gap:8}},
+                  React.createElement('button',{className:'btn primary',onClick:saveProfilePhoto},uploadingPhoto?'Saving...':'Save Photo'),
+                  React.createElement('button',{className:'btn',onClick:cancelProfilePhoto},'Cancel')
+                )
+              ):null,
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('input',{id:'videoInput',type:'file',accept:'video/*',onChange:handleVideoUpload,style:{display:'none'}}),
+              React.createElement('label',{htmlFor:'videoInput',className:'btn',style:{cursor:'pointer'}},uploadingVideo?'Uploading...':'Upload Intro Video (5s max)'),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('input',{className:'input',value:displayName,onChange:e=>setDisplayName(e.target.value),placeholder:'Display name'})),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('input',{className:'input',value:location,onChange:e=>setLocation(e.target.value),placeholder:'Location'})),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('textarea',{className:'textarea',value:bio,onChange:e=>setBio(e.target.value),placeholder:'Bio'})),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('div',{style:{marginBottom:6,fontWeight:700}},'Font Style'),React.createElement('div',{className:'chips'},fontOptions.map(f=>React.createElement('button',{key:f.value,className:'chip'+(fontStyle===f.value?' selected':''),onClick:()=>setFontStyle(f.value)},f.label)))),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('div',{style:{marginBottom:6,fontWeight:700}},'Handle Color'),React.createElement('div',{className:'row',style:{alignItems:'center',gap:8}},React.createElement('input',{type:'color',value:handleColor,onChange:e=>changeHandleColor(e.target.value),style:{width:40,height:40,border:'none',cursor:'pointer',borderRadius:6}}),React.createElement('span',{style:{color:handleColor,fontWeight:700}},handle||'@username'))),
+              React.createElement('div',{style:{height:8}}),
+              React.createElement('div',null,React.createElement('button',{className:'btn primary',onClick:saveProfile},'Save profile'))
+            )
+          ),
+
+          React.createElement('div',{className:'panel'},
+            React.createElement('div',{style:{fontWeight:700,marginBottom:10}},isAdmin(session?.user)?'Circle Me & Admin':'Circle Me'),
+            
+            isAdmin(session?.user)?React.createElement('div',{style:{marginBottom:12}},
+              React.createElement('button',{className:'btn',style:{width:'100%',justifyContent:'space-between',display:'flex',alignItems:'center'},onClick:()=>setAdminOpen(o=>!o)},
+                React.createElement('span',null,'⚙ Admin controls'),
+                React.createElement('span',{style:{opacity:0.8}},adminOpen?'▲':'▼')
+              ),
+              adminOpen?React.createElement('div',{style:{marginTop:8,padding:10,border:'1px solid rgba(148,163,184,0.1)',borderRadius:8,background:'rgba(34,197,94,0.05)'}},
+                React.createElement('div',{style:{fontWeight:600,marginBottom:6,fontSize:12}},'Change Logo'),
+                React.createElement('input',{id:'logoInput',type:'file',accept:'image/*',onChange:handleLogoUpload,style:{display:'none'}}),
+                React.createElement('label',{htmlFor:'logoInput',className:'btn',style:{cursor:'pointer',display:'block',textAlign:'center'}},uploadingLogo?'Uploading...':'📤 Upload New Logo'),
+                React.createElement('div',{style:{height:8}}),
+                React.createElement('div',{style:{fontWeight:600,marginBottom:6,fontSize:12}},'User Management'),
+                React.createElement('div',{style:{display:'flex',gap:6,flexDirection:'column'}},
+                  React.createElement('div',{className:'row'},
+                    React.createElement('input',{className:'input',style:{flex:1,fontSize:11,padding:'6px 8px'},value:searchEmail,onChange:e=>setSearchEmail(e.target.value),placeholder:'Find user'}),
+                    React.createElement('button',{className:'btn',style:{fontSize:11,padding:'6px 8px'},onClick:searchUser},'Go')
+                  ),
+                  searchResult?React.createElement('div',{style:{marginTop:6,padding:8,background:'rgba(0,0,0,0.3)',borderRadius:6}},
+                    React.createElement('div',{style:{fontSize:11,fontWeight:600,marginBottom:6}},searchResult.display_name||searchResult.handle),
+                    React.createElement('div',{style:{display:'flex',gap:4,flexWrap:'wrap'}},
+                      React.createElement('button',{className:'btn primary',style:{fontSize:10,padding:'4px 6px'},onClick:()=>toggleCertified(searchResult.id,searchResult.certified)},searchResult.certified?'✓ Certified':'⭐ Certify'),
+                      React.createElement('button',{className:'btn',style:{fontSize:10,padding:'4px 6px',color:searchResult.banned?'#22c55e':'#ef4444'},onClick:()=>searchResult.banned?unbanUser(searchResult.id):banUser(searchResult.id)},searchResult.banned?'✓ Unbanned':'🚫 Ban')
+                    )
+                  ):null
+                )
+              ):null
+            ):null,
+
+            React.createElement('div',{className:'row'},
+              React.createElement('input',{className:'input',style:{flex:1},value:searchEmail,onChange:e=>setSearchEmail(e.target.value),placeholder:'Search by email or handle'}),
+              React.createElement('button',{className:'btn',onClick:searchUser},'Search')
+            ),
+            searchResult?React.createElement('div',{style:{marginTop:10}},
+              React.createElement('div',{style:{marginBottom:8}},searchResult.display_name||searchResult.handle),
+              React.createElement('div',{className:'chips'},circleOptions.map(c=>React.createElement('button',{key:c,className:'chip',onClick:()=>assignCircle(searchResult.id,c)},c))),
+              isAdmin(session?.user)?React.createElement('div',{style:{marginTop:10}},
+                React.createElement('div',{className:'row',style:{gap:6,flexWrap:'wrap'}},
+                  React.createElement('button',{className:'btn primary',onClick:()=>toggleCertified(searchResult.id,searchResult.certified)},searchResult.certified?'Remove Certified':'Grant Certified'),
+                  React.createElement('button',{className:'btn',style:{color:searchResult.banned?'#22c55e':'#ef4444'},onClick:()=>searchResult.banned?unbanUser(searchResult.id):banUser(searchResult.id)},searchResult.banned?'Unban user globally':'Ban user globally')
+                )
+              ):null
+            ):null,
+            React.createElement('div',{style:{marginTop:10}},
+              React.createElement('button',{className:'btn',onClick:loadMyFollowers},'Show My Circlez'),
+              myFollowers.length>0?React.createElement('div',{style:{marginTop:8}},myFollowers.map(f=>React.createElement('div',{key:f.member_id,style:{padding:8,borderRadius:8,background:'rgba(255,255,255,0.02)',marginBottom:6}},
+                React.createElement('div',null,(f.profiles?.display_name||f.profiles?.handle||'User')+' → '+f.circle)
+              ))):null
+            )
+          ),
+
+          React.createElement('div',{className:'panel'},
+            React.createElement('div',{className:'panel-title-row row'},React.createElement('div',{style:{fontWeight:700}},'Compose')),
+            React.createElement('div',{style:{marginBottom:10}},
+              React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Choose circle'),
+              React.createElement('div',{className:'chips'},circleOptions.map(label=>React.createElement('button',{key:label,className:'chip'+(selectedCircles.includes(label)?' selected':''),onClick:()=>toggle(setSelectedCircles,selectedCircles,label)},label)))
+            ),
+            React.createElement('div',{style:{height:6}}),
+            React.createElement('textarea',{className:'textarea',value:content,onChange:e=>setContent(e.target.value),placeholder:'Drop a thought…'}),
+            React.createElement('div',{style:{height:8}}),
+            composeMedia.length>0?
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(80px,1fr))',gap:6,marginBottom:10,padding:8,background:'rgba(34,197,94,0.05)',borderRadius:8,border:'1px solid rgba(34,197,94,0.2)'}},
+              composeMedia.map((m,i)=>React.createElement('div',{key:i,style:{aspectRatio:'1/1',position:'relative',borderRadius:6,overflow:'hidden',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)'}},
+                m.type==='video'?
+                React.createElement('video',{src:m.url,style:{width:'100%',height:'100%',objectFit:'cover'}}):
+                React.createElement('img',{src:m.url,style:{width:'100%',height:'100%',objectFit:'cover'}}),
+                React.createElement('button',{onClick:()=>removeComposeMedia(i),style:{position:'absolute',top:2,right:2,background:'rgba(239,68,68,0.9)',color:'white',border:'none',borderRadius:999,width:24,height:24,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',padding:0}},'+')
+              ))
+            ):
+            null,
+            React.createElement('div',{className:'row',style:{gap:6,marginBottom:8}},
+              React.createElement('input',{id:'composeMediaInput',type:'file',accept:'image/*,video/*',multiple:true,onChange:handleComposeMediaSelect,style:{display:'none'}}),
+              React.createElement('label',{htmlFor:'composeMediaInput',className:'chip',style:{cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,fontWeight:700,letterSpacing:0.2}},'📷','Add Media'),
+              composeMedia.length>0?React.createElement('button',{className:'btn primary glow',onClick:post,disabled:composingMedia,style:{flex:1}},composingMedia?'Posting...':'✓ Save Post'):null,
+              composeMedia.length>0?React.createElement('button',{className:'btn',onClick:()=>setComposeMedia([])},'Clear'):null
+            ),
+            React.createElement('div',null,React.createElement('button',{className:'btn primary'+(content.length>0||composeMedia.length>0?' glow':''),onClick:post,disabled:composingMedia},composingMedia?'Posting...':'Post to Circlez'))
+          ),
+
+          React.createElement('div',{className:'panel'},React.createElement('div',{className:'row'},React.createElement('div',{style:{fontWeight:700}},currentView==='media'?'Your Media':currentView==='cm'?'CM — Circled Message':currentView==='live'?'🔴 Private CM':'Your feed'),React.createElement('div',{style:{marginLeft:'auto'}},React.createElement('button',{className:'btn',onClick:()=>setCurrentView('feed')},'Feed'),React.createElement('button',{className:'btn'+(currentView==='media'?' primary':''),onClick:()=>{setCurrentView('media');loadMediaGallery()},style:{marginLeft:4}},'Media'),React.createElement('button',{className:'btn'+(currentView==='cm'?' primary':''),onClick:()=>{setCurrentView('cm');loadConversations()},style:{marginLeft:4}},'CM'),React.createElement('button',{className:'btn'+(currentView==='live'?' primary':''),onClick:()=>{setCurrentView('live');loadLiveStreams()},style:{marginLeft:4}},'🔴 Private CM'))),
+            React.createElement('div',{style:{height:8}}),
+            currentView==='feed'?
+            feed.length===0?React.createElement('div',{className:'meta'},'No posts yet.'):
+            React.createElement('div',null,feed.map(p=>React.createElement('div',{key:p.id,className:'post',style:{paddingBottom:12,borderBottom:'1px solid rgba(148,163,184,0.1)'}},
+              React.createElement('div',{style:{fontWeight:700,display:'flex',alignItems:'center',gap:6,marginBottom:6}},
+                React.createElement('button',{className:'btn',onClick:()=>{setViewUserId(p.author_id);setCurrentView('feed');loadFeed();},style:{padding:'2px 6px',fontSize:12}},p.author_handle||'@member'),
+                p.certified?React.createElement(CertifiedBadge,{size:16}):null
+              ),
+              React.createElement('div',{className:'meta',style:{marginBottom:6}},formatDate(p.created_at)),
+              React.createElement('div',{style:{marginTop:8,marginBottom:8}},p.content),
+              p.media_urls&&p.media_urls.length>0?
+                (expandedPostId===p.id?
+                  React.createElement('div',null,
+                    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginTop:8,marginBottom:8}},
+                      p.media_urls.map((url,idx)=>{
+                        const canDelete = (p.author_id===session.user.id)||isAdmin(session.user);
+                        const menuKey = `feed:${p.id}:${idx}`;
+                        return React.createElement('div',{key:idx,style:{position:'relative',aspectRatio:'1/1',borderRadius:8,overflow:'hidden',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)'}},
+                        url.includes('.mp4')||url.includes('video')?
+                          React.createElement('video',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},controls:true}):
+                          React.createElement('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'}}),
+                        React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.85)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:800,letterSpacing:1}},'CIRCLEZ'),
+                        canDelete?React.createElement('div',{style:{position:'absolute',top:4,right:4}},
+                          React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)} ,style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
+                          openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                            React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(p.id,url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
+                          ):null
+                        ):null
+                      )})
+                    ),
+                    React.createElement('div',{style:{display:'flex',justifyContent:'flex-end'}},
+                      React.createElement('button',{className:'btn',onClick:()=>setExpandedPostId(null)},'Hide media')
+                    )
+                  )
+                  :
+                  React.createElement('div',{style:{marginTop:8,marginBottom:8,display:'flex',justifyContent:'center'}},
+                    React.createElement('button',{className:'btn',onClick:()=>setExpandedPostId(p.id)},`View media (${p.media_urls.length})`)
+                  )
+                )
+              : null,
+              React.createElement('div',{className:'tags',style:{marginBottom:8}},
+                (p.circlez||[]).map(c=>React.createElement('button',{className:'chip',key:c,onClick:()=>{setFeedCircleFilter(c);setCurrentView('feed');loadFeed();}},c)),
+                (p.mood||[]).map(m=>React.createElement('span',{className:'chip',key:m},m))
+              )
+                          ,
+                          p.author_id!==session?.user?.id?React.createElement('div',{style:{marginTop:6}},
+                            blockedUsers.includes(p.author_id)?
+                              React.createElement('button',{className:'btn',onClick:()=>unblockUser(p.author_id),style:{fontSize:12,padding:'4px 8px'}},'Unblock'):
+                              React.createElement('button',{className:'btn',onClick:()=>blockUser(p.author_id),style:{fontSize:12,padding:'4px 8px',color:'#ef4444'}},'Block user')
+                          ):null
+            )))
+            :
+            currentView==='media'?
+            (mediaGallery.length===0?React.createElement('div',{className:'meta'},'No photos or videos yet.'):
+              React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}},
+                mediaGallery.map(item=>{
+                  const menuKey = `gallery:${item.id}:${encodeURIComponent(item.url)}`;
+                  return React.createElement('div',{key:item.id+'-'+item.url,style:{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',cursor:'default',border:'1px solid rgba(34,197,94,0.3)',background:'rgba(0,0,0,0.3)',position:'relative'}},
+                  item.type==='video'?
+                  React.createElement('video',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'},controls:false}):
+                  React.createElement('img',{src:item.url,style:{width:'100%',height:'100%',objectFit:'cover',display:'block'}}),
+                  React.createElement('div',{style:{position:'absolute',top:4,right:4}},
+                    React.createElement('img',{src:logoUrl||'cz-logo.png',alt:'CIRCLEZ',title:'Options',onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(prev=>prev===menuKey?null:menuKey)},style:{width:28,height:28,borderRadius:6,background:'rgba(17,24,39,0.9)',padding:3,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.4)'}}),
+                    openMediaMenu===menuKey?React.createElement('div',{style:{position:'absolute',top:34,right:0,background:'rgba(17,24,39,0.95)',color:'#fff',borderRadius:8,overflow:'hidden',minWidth:120,boxShadow:'0 8px 24px rgba(0,0,0,0.4)',border:'1px solid rgba(148,163,184,0.2)'}},
+                      React.createElement('button',{onClick:(e)=>{e.stopPropagation();setOpenMediaMenu(null); if(!deletingMedia) deleteMedia(item.id,item.url)},style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'#ef4444',padding:'8px 10px',cursor:deletingMedia?'not-allowed':'pointer',fontWeight:600}},'Delete')
+                    ):null
+                  ),
+                  React.createElement('div',{style:{position:'absolute',bottom:4,right:4,background:'rgba(34,197,94,0.85)',color:'white',padding:'2px 6px',borderRadius:4,fontSize:11,fontWeight:800,letterSpacing:1}},'CIRCLEZ')
+                )})
+              )
+            )
+            :
+            React.createElement('div',{className:'row',style:{gap:12}},
+              React.createElement('div',{style:{flex:'0 0 200px'}},
+                React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Conversations'),
+                React.createElement('div',{className:'row',style:{gap:4,marginBottom:8}},
+                  React.createElement('input',{className:'input',value:cmSearch,onChange:e=>setCmSearch(e.target.value),placeholder:'Search by handle...',style:{flex:1,minWidth:0}}),
+                  React.createElement('button',{className:'btn',onClick:searchCmUser},'🔍')
+                ),
+                cmSearchResult?React.createElement('div',{style:{marginBottom:8,padding:8,borderRadius:8,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',cursor:'pointer'},onClick:()=>{setSelectedMessenger(cmSearchResult.id);loadMessages(cmSearchResult.id);setCmSearchResult(null);setCmSearch('')}},
+                  React.createElement('div',{className:'row',style:{alignItems:'center',gap:8}},
+                    cmSearchResult.profile_photo_?React.createElement('img',{src:cmSearchResult.profile_photo_,style:{width:28,height:28,borderRadius:999,objectFit:'cover'}}):React.createElement('div',{style:{width:28,height:28,borderRadius:999,background:'rgba(34,197,94,0.2)'}}),
+                    React.createElement('div',{style:{fontWeight:700}},(cmSearchResult.display_name||cmSearchResult.handle||'@user'))
+                  )
+                ):null,
+                conversations.length===0?React.createElement('div',{className:'meta'},'No CM yet.'):
+                React.createElement('div',null,conversations.map(c=>React.createElement('div',{key:c.id,className:'row',style:{alignItems:'center',gap:8,marginBottom:6,cursor:'pointer'},onClick:()=>{setSelectedMessenger(c.id);loadMessages(c.id)}},
+                  c.profile?.profile_photo_?React.createElement('img',{src:c.profile.profile_photo_,style:{width:28,height:28,borderRadius:999,objectFit:'cover'}}):React.createElement('div',{style:{width:28,height:28,borderRadius:999,background:'rgba(34,197,94,0.2)'}}),
+                  React.createElement('div',{style:{fontWeight:700,overflow:'hidden',textOverflow:'ellipsis'}},c.profile?.display_name||c.profile?.handle||'@member')
+                )))
+              ),
+              React.createElement('div',{style:{flex:1}},
+                selectedMessenger?React.createElement('div',null,
+                  React.createElement('div',{className:'row',style:{marginBottom:8,alignItems:'center',gap:6}},
+                    React.createElement('div',{className:'panel-title'},'Chat'),
+                    React.createElement('div',{style:{marginLeft:'auto',display:'flex',gap:4}},
+                      React.createElement('button',{className:'btn',onClick:()=>startCmVideoCall(selectedMessenger,false),disabled:!!activeCmCall},'📹 Live CM'),
+                      React.createElement('button',{className:'btn',onClick:()=>startCmVideoCall(selectedMessenger,true),disabled:!!activeCmCall,style:{display:'flex',alignItems:'center',gap:6}},
+                        React.createElement(PrivateBadge,{size:20}),
+                        'Private CM'
+                      )
+                    )
+                  ),
+                  activeCmCall&&activeCmCall.recipientId===selectedMessenger?React.createElement('div',{style:{marginBottom:8,padding:8,background:'rgba(239,68,68,0.1)',borderRadius:8,border:'1px solid rgba(239,68,68,0.3)'}},
+                    React.createElement('div',{style:{fontWeight:700,color:'#ef4444'}},'📹 Live call in progress'),
+                    React.createElement('button',{className:'btn',onClick:endCmCall,style:{marginTop:6}},'End Call')
+                  ):null,
+                  React.createElement('div',{style:{maxHeight:260,overflowY:'auto',padding:8,border:'1px solid rgba(148,163,184,0.15)',borderRadius:8}},
+                    messages.map(m=>{
+                      const mine=m.sender_id===session.user.id;
+                      const hasMedia=!!m.media_url;
+                      const isVideo=hasMedia&&(m.media_url.includes('.mp4')||m.media_url.includes('video'));
+                      return React.createElement('div',{key:m.id,style:{marginBottom:8,textAlign:mine?'right':'left'}},
+                        React.createElement('div',{style:{display:'inline-block',padding:'6px 8px',borderRadius:8,background:mine?'rgba(34,197,94,0.2)':'rgba(148,163,184,0.12)',maxWidth:320}},
+                          m.content?React.createElement('div',{style:{marginBottom:hasMedia?6:0}},m.content):null,
+                          hasMedia?
+                            React.createElement('div',{style:{maxWidth:260}},
+                              isVideo?
+                                React.createElement('video',{src:m.media_url,style:{width:'100%',height:'auto',borderRadius:6},controls:true}):
+                                React.createElement('img',{src:m.media_url,style:{width:'100%',height:'auto',borderRadius:6,display:'block'}})
+                            )
+                          :null
+                        ),
+                        mine&&m.read_at?React.createElement('div',{className:'meta',style:{fontSize:11,marginTop:2}},'Read'):null
+                      );
+                    })
+                  ),
+                  getLastOutgoingReadAt()?React.createElement('div',{className:'meta',style:{textAlign:'right',marginTop:4}},`Last read ${formatDate(getLastOutgoingReadAt())}`):null,
+                  React.createElement('div',{className:'row',style:{marginTop:8,gap:6,alignItems:'center',flexWrap:'wrap'}},
+                    React.createElement('input',{type:'file',accept:'video/*',capture:'environment',ref:dmCameraInputRef,onChange:handleDmFileSelect,style:{display:'none'}}),
+                    React.createElement('input',{type:'file',accept:'image/*,video/*',ref:dmFileInputRef,onChange:handleDmFileSelect,style:{display:'none'}}),
+                    React.createElement('input',{className:'input',value:messageText,onChange:e=>setMessageText(e.target.value),placeholder:'Message...',onKeyDown:e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage(selectedMessenger)}},style:{flex:1,minWidth:0}}),
+                    React.createElement('button',{className:'btn',onClick:()=>dmCameraInputRef.current&&dmCameraInputRef.current.click(),disabled:dmUploading},'📹'),
+                    React.createElement('button',{className:'btn',onClick:()=>dmFileInputRef.current&&dmFileInputRef.current.click(),disabled:dmUploading},'📎'),
+                    React.createElement('button',{className:'btn primary',onClick:()=>sendMessage(selectedMessenger),disabled:dmUploading||(!messageText.trim())},dmUploading?'⏳':'Send')
+                  )
+                ):React.createElement('div',{className:'meta'},'Select a conversation')
+              )
+            )
+          )
+        )
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+    </script>
+  </body>
+</html>
