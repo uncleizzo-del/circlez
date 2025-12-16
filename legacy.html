@@ -729,6 +729,12 @@
           setActiveCmCall(null);
         }
 
+        async function loadLiveStreams(){
+          // For now, live streams view shows the CM interface where users can start private video calls
+          // This could be expanded in the future to show active live streams
+          await loadConversations();
+        }
+
         async function loadConversations(){
           if(!session)return;
           const uid=session.user.id;
@@ -1228,6 +1234,7 @@
               )
             )
             :
+            (currentView==='cm'||currentView==='live')?
             React.createElement('div',{className:'row',style:{gap:12}},
               React.createElement('div',{style:{flex:'0 0 200px'}},
                 React.createElement('div',{className:'panel-title',style:{marginBottom:6}},'Conversations'),
@@ -1295,6 +1302,8 @@
                 ):React.createElement('div',{className:'meta'},'Select a conversation')
               )
             )
+            :
+            React.createElement('div',{className:'meta'},'Unknown view')
           )
         )
       }
